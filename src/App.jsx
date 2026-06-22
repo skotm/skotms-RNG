@@ -153,9 +153,9 @@ function cutsceneTypeFor(chance) {
 }
 
 const CUTSCENE_DURATIONS = {
-  four: { black: 220, spin: 900, flash: 280 },
-  star: { black: 260, spin: 1200, flash: 320 },
-  six: { black: 300, spin: 1600, flash: 380 },
+  four: { black: 220, spin: 1300, flash: 280 },
+  star: { black: 260, spin: 1700, flash: 320 },
+  six: { black: 300, spin: 2200, flash: 380 },
 };
 
 /* an N-pointed concave burst/sparkle shape — each point is a sharp tip,
@@ -293,6 +293,7 @@ export default function App() {
   const [spinning, setSpinning] = useState(false);
   const [burst, setBurst] = useState(null); // { color, rings, key }
   const [cutscene, setCutscene] = useState(null); // { type: 'four'|'star'|'six', color, stage, key }
+  const [shaking, setShaking] = useState(false);
   const [popKey, setPopKey] = useState(0);
   const [currentRollLucky, setCurrentRollLucky] = useState(false);
   const [headerBadgeAuraId, setHeaderBadgeAuraId] = useState(null);
@@ -318,6 +319,7 @@ export default function App() {
   const finishTimeoutRef = useRef(null);
   const burstClearRef = useRef(null);
   const cutsceneTimeoutRef = useRef(null);
+  const shakeTimeoutRef = useRef(null);
 
   const rollBtnRef = useRef(null);
   const [btnSize, setBtnSize] = useState({ w: 0, h: 0 });
@@ -377,11 +379,13 @@ export default function App() {
     clearTimeout(finishTimeoutRef.current);
     clearTimeout(burstClearRef.current);
     clearTimeout(cutsceneTimeoutRef.current);
+    clearTimeout(shakeTimeoutRef.current);
     setZoomDuration(SNAP_OUT_MS);
     setZoomed(false);
     setSpinning(false);
     setBurst(null);
     setCutscene(null);
+    setShaking(false);
   }, []);
 
   /* the actual data mutation for a roll — deliberately NOT called at press
@@ -468,15 +472,19 @@ export default function App() {
       const runCutscene = (ctype) => {
         const dur = CUTSCENE_DURATIONS[ctype];
         const color = colorOf(aura);
-        setCutscene({ type: ctype, color, stage: "black", key: Math.random() });
-        playTick("land");
+        setCutscene({ type: ctype, color, stage: "black", key: Math.random() }); // silent — no click here
         cutsceneTimeoutRef.current = setTimeout(() => {
           setCutscene((c) => c && { ...c, stage: "spin" });
           cutsceneTimeoutRef.current = setTimeout(() => {
             setCutscene((c) => c && { ...c, stage: "flash" });
+            // reveal now, while still hidden behind the flash — by the time it
+            // clears, the result is already sitting there, and the shake lands
+            // right as it becomes visible
+            revealNow();
+            setShaking(true);
+            shakeTimeoutRef.current = setTimeout(() => setShaking(false), 320);
             cutsceneTimeoutRef.current = setTimeout(() => {
               setCutscene(null);
-              revealNow();
             }, dur.flash);
           }, dur.spin);
         }, dur.black);
@@ -689,16 +697,26 @@ export default function App() {
           pointer-events: none;
         }
         .ar-cutscene-shape { width: 38vmin; height: 38vmin; max-width: 220px; max-height: 220px; opacity: 0; transform: scale(0.5); transition: opacity .2s ease, transform .2s ease; }
-        .ar-cutscene-spin .ar-cutscene-shape, .ar-cutscene-flash .ar-cutscene-shape {
-          opacity: 1; transform: scale(1);
-          animation: ar-cs-spin var(--spin-ms) cubic-bezier(.55,0,1,.45) forwards;
+        .ar-cutscene-spin .ar-cutscene-shape {
+          opacity: 1;
+          animation: ar-cs-spin var(--spin-ms) cubic-bezier(0.83, 0, 1, 0.45) forwards;
         }
-        @keyframes ar-cs-spin { from { transform: scale(1) rotate(0deg); } to { transform: scale(1.18) rotate(1080deg); } }
+        .ar-cutscene-flash .ar-cutscene-shape {
+          animation: none;
+          opacity: 0;
+          transform: scale(1.35);
+          transition: opacity .15s ease, transform .15s ease;
+        }
+        @keyframes ar-cs-spin {
+          from { transform: scale(1) rotate(0deg); }
+          to { transform: scale(1.18) rotate(1080deg); }
+        }
         .ar-cutscene-sparkle, .ar-cutscene-star { width: 100%; height: 100%; filter: drop-shadow(0 0 18px var(--cs-color)); }
         .ar-cutscene-flash {
-          animation: ar-cs-flash-bg 0.3s ease forwards, ar-cs-shake 0.3s ease;
+          animation: ar-cs-flash-bg 0.3s ease forwards;
         }
         @keyframes ar-cs-flash-bg { 0% { background: #000; } 65% { background: #fff; } 100% { background: #fff; opacity: 0; } }
+        .ar-stage.ar-shake { animation: ar-cs-shake 0.3s ease; }
         @keyframes ar-cs-shake {
           0%, 100% { transform: translate(0, 0); }
           20% { transform: translate(-7px, 3px); }
@@ -966,6 +984,7 @@ export default function App() {
           .ar-stage, .ar-vignette-fixed { transition: none !important; }
           .ar-cutscene-shape { transition: none !important; animation: none !important; opacity: 1 !important; transform: scale(1) !important; }
           .ar-cutscene-flash { animation: none !important; background: #fff !important; }
+          .ar-stage.ar-shake { animation: none !important; }
         }
       `}</style>
 
@@ -991,7 +1010,10 @@ export default function App() {
         </div>
       )}
 
-      <div className="ar-stage" style={{ transform: zoomed ? `scale(${PEAK_SCALE})` : "scale(1)", transitionProperty: "transform", transitionDuration: `${zoomDuration}ms`, transitionTimingFunction: zoomed ? "linear" : "ease-out" }}>
+      <div
+        className={`ar-stage ${shaking ? "ar-shake" : ""}`}
+        style={{ transform: zoomed ? `scale(${PEAK_SCALE})` : "scale(1)", transitionProperty: "transform", transitionDuration: `${zoomDuration}ms`, transitionTimingFunction: zoomed ? "linear" : "ease-out" }}
+      >
         <header className="ar-header">
           <div className="ar-header-left">
             <div className="ar-badge-row">
