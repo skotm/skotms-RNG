@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { LayoutGrid, Trophy, Settings as SettingsIcon, BarChart3, FastForward, Pause, Lock, X, RotateCcw, CheckCircle2, Circle, Eye } from "lucide-react";
+import { LayoutGrid, Trophy, Settings as SettingsIcon, BarChart3, FastForward, Pause, Lock, X, RotateCcw, CheckCircle2, Circle, Eye, Star } from "lucide-react";
 
 /* ---------------------------------------------------------------------- */
 /* Data — rarity accents borrowed from Apple's own system colour palette  */
@@ -142,6 +142,39 @@ function effectFor(tier) {
   return { rings: 5, duration: 2300 }; // Dimensional, the apex
 }
 
+/* the pre-reveal "confirm" cutscene for sufficiently rare pulls — a jagged
+   4-point sparkle, a 5-point star, or a jagged 6-point sparkle, depending
+   on how rare the result is */
+function cutsceneTypeFor(chance) {
+  if (chance >= 1000000) return "six";
+  if (chance >= 100000) return "star";
+  if (chance >= 10000) return "four";
+  return null;
+}
+
+const CUTSCENE_DURATIONS = {
+  four: { black: 220, spin: 900, flash: 280 },
+  star: { black: 260, spin: 1200, flash: 320 },
+  six: { black: 300, spin: 1600, flash: 380 },
+};
+
+/* an N-pointed concave burst/sparkle shape — each point is a sharp tip,
+   joined to the next by a curve whose control point sits at the center,
+   pulling the side inward for the jagged "twinkle" look */
+function sparklePath(n, outerR = 46, cx = 50, cy = 50) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
+    pts.push([cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle)]);
+  }
+  let d = `M ${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)} `;
+  for (let i = 1; i <= n; i++) {
+    const [x, y] = pts[i % n];
+    d += `Q ${cx},${cy} ${x.toFixed(2)},${y.toFixed(2)} `;
+  }
+  return d + "Z";
+}
+
 /* ---------------------------------------------------------------------- */
 /* Sound — a soft tick, like an iOS picker wheel                          */
 /* ---------------------------------------------------------------------- */
@@ -259,6 +292,7 @@ export default function App() {
   const [revealAuraId, setRevealAuraId] = useState(null);
   const [spinning, setSpinning] = useState(false);
   const [burst, setBurst] = useState(null); // { color, rings, key }
+  const [cutscene, setCutscene] = useState(null); // { type: 'four'|'star'|'six', color, stage, key }
   const [popKey, setPopKey] = useState(0);
   const [currentRollLucky, setCurrentRollLucky] = useState(false);
   const [headerBadgeAuraId, setHeaderBadgeAuraId] = useState(null);
@@ -283,6 +317,7 @@ export default function App() {
   const climaxTimeoutRef = useRef(null);
   const finishTimeoutRef = useRef(null);
   const burstClearRef = useRef(null);
+  const cutsceneTimeoutRef = useRef(null);
 
   const rollBtnRef = useRef(null);
   const [btnSize, setBtnSize] = useState({ w: 0, h: 0 });
@@ -341,10 +376,12 @@ export default function App() {
     clearTimeout(climaxTimeoutRef.current);
     clearTimeout(finishTimeoutRef.current);
     clearTimeout(burstClearRef.current);
+    clearTimeout(cutsceneTimeoutRef.current);
     setZoomDuration(SNAP_OUT_MS);
     setZoomed(false);
     setSpinning(false);
     setBurst(null);
+    setCutscene(null);
   }, []);
 
   /* the actual data mutation for a roll — deliberately NOT called at press
@@ -390,15 +427,60 @@ export default function App() {
      skipped entirely so the screen stays calm and other buttons stay usable.
      The cycling text decelerates (fast → slow) and freezes on a tease as
      the zoom reaches its peak. The true result is only swapped in at the
-     very end, right as it snaps back out — so the tease and the real
-     result are allowed to differ. */
+     very end — for sufficiently rare results, a black-screen "confirm"
+     cutscene (spinning sparkle/star, then a white flash + shake) plays
+     first, and only then is the real result revealed. */
   const runRollAnimation = useCallback(
-    (aura, totalMs) => {
+    (aura, totalMs, isPreview = false) => {
       clearRollTimers();
       const doZoom = !autoFastRef.current;
       const buildMs = Math.max(totalMs - SNAP_OUT_MS - FINISH_BUFFER_MS, 600);
       const cycleMs = Math.round(buildMs * 0.74);
       const holdMs = buildMs - cycleMs;
+
+      const revealNow = () => {
+        setRevealText(aura.name);
+        setRevealAuraId(aura.id);
+        if (!isPreview) {
+          setHeaderBadgeAuraId((prevBest) => {
+            const prevChance = prevBest ? AURAS.find((a) => a.id === prevBest).chance : 0;
+            return aura.chance > prevChance ? aura.id : prevBest;
+          });
+        }
+        if (aura.tier >= 6) setRareFind({ aura, key: Math.random() });
+        if (currentRollRef.current) {
+          applyRollResult(currentRollRef.current.aura, currentRollRef.current.isLucky);
+          currentRollRef.current = null;
+        }
+        setPopKey((k) => k + 1);
+        playTick("land");
+        const fx = effectFor(aura.tier);
+        if (fx.rings > 0) {
+          setBurst({ color: colorOf(aura), rings: fx.rings, key: Math.random() });
+          burstClearRef.current = setTimeout(() => setBurst(null), fx.duration + 200);
+        }
+        finishTimeoutRef.current = setTimeout(() => {
+          setSpinning(false);
+          setCurrentRollLucky(false);
+        }, SNAP_OUT_MS + FINISH_BUFFER_MS);
+      };
+
+      const runCutscene = (ctype) => {
+        const dur = CUTSCENE_DURATIONS[ctype];
+        const color = colorOf(aura);
+        setCutscene({ type: ctype, color, stage: "black", key: Math.random() });
+        playTick("land");
+        cutsceneTimeoutRef.current = setTimeout(() => {
+          setCutscene((c) => c && { ...c, stage: "spin" });
+          cutsceneTimeoutRef.current = setTimeout(() => {
+            setCutscene((c) => c && { ...c, stage: "flash" });
+            cutsceneTimeoutRef.current = setTimeout(() => {
+              setCutscene(null);
+              revealNow();
+            }, dur.flash);
+          }, dur.spin);
+        }, dur.black);
+      };
 
       setSpinning(true);
       if (doZoom) {
@@ -414,33 +496,17 @@ export default function App() {
           // hold on whatever tease is currently showing through the peak zoom —
           // the true result is only revealed once we snap back out
           climaxTimeoutRef.current = setTimeout(() => {
-            // peak reached — snap back out instantly and reveal the real result
+            // peak reached — snap back out instantly
             if (doZoom) {
               setZoomDuration(SNAP_OUT_MS);
               setZoomed(false);
             }
-            setRevealText(aura.name);
-            setRevealAuraId(aura.id);
-            setHeaderBadgeAuraId((prevBest) => {
-              const prevChance = prevBest ? AURAS.find((a) => a.id === prevBest).chance : 0;
-              return aura.chance > prevChance ? aura.id : prevBest;
-            });
-            if (aura.tier >= 6) setRareFind({ aura, key: Math.random() });
-            if (currentRollRef.current) {
-              applyRollResult(currentRollRef.current.aura, currentRollRef.current.isLucky);
-              currentRollRef.current = null;
+            const ctype = cutsceneTypeFor(aura.chance);
+            if (ctype) {
+              runCutscene(ctype);
+            } else {
+              revealNow();
             }
-            setPopKey((k) => k + 1);
-            playTick("land");
-            const fx = effectFor(aura.tier);
-            if (fx.rings > 0) {
-              setBurst({ color: colorOf(aura), rings: fx.rings, key: Math.random() });
-              burstClearRef.current = setTimeout(() => setBurst(null), fx.duration + 200);
-            }
-            finishTimeoutRef.current = setTimeout(() => {
-              setSpinning(false);
-              setCurrentRollLucky(false);
-            }, SNAP_OUT_MS + FINISH_BUFFER_MS);
           }, holdMs);
           return;
         }
@@ -543,24 +609,16 @@ export default function App() {
 
   const updateSettings = (patch) => setData((prev) => ({ ...prev, settings: { ...prev.settings, ...patch } }));
 
-  /* debug-only: preview an aura's reveal effect without rolling for it —
-     no data is touched (no inventory, no totalRolls, no best-aura) */
+  /* debug-only: preview an aura's full reveal sequence (cycling, zoom,
+     climax, burst) without rolling for it — no data is touched (no
+     inventory, no totalRolls, no best-aura badge) */
   const previewAura = useCallback(
     (aura) => {
       if (spinningRef.current) return;
       setView("roll");
-      setRevealText(aura.name);
-      setRevealAuraId(aura.id);
-      setPopKey((k) => k + 1);
-      playTick("land");
-      const fx = effectFor(aura.tier);
-      if (fx.rings > 0) {
-        setBurst({ color: colorOf(aura), rings: fx.rings, key: Math.random() });
-        setTimeout(() => setBurst(null), fx.duration + 200);
-      }
-      if (aura.tier >= 6) setRareFind({ aura, key: Math.random() });
+      runRollAnimation(aura, NORMAL_MS, true);
     },
-    [playTick]
+    [runRollAnimation]
   );
 
   /* navigating away only interrupts a blocking (normal) roll — auto-rolling
@@ -621,6 +679,32 @@ export default function App() {
           z-index: 45;
           opacity: 0;
           background: radial-gradient(circle at 50% 38%, rgba(255,255,255,0) 20%, rgba(0,0,0,0.93) 74%);
+        }
+
+        .ar-cutscene {
+          position: fixed; inset: 0;
+          z-index: 70;
+          background: #000;
+          display: flex; align-items: center; justify-content: center;
+          pointer-events: none;
+        }
+        .ar-cutscene-shape { width: 38vmin; height: 38vmin; max-width: 220px; max-height: 220px; opacity: 0; transform: scale(0.5); transition: opacity .2s ease, transform .2s ease; }
+        .ar-cutscene-spin .ar-cutscene-shape, .ar-cutscene-flash .ar-cutscene-shape {
+          opacity: 1; transform: scale(1);
+          animation: ar-cs-spin var(--spin-ms) cubic-bezier(.55,0,1,.45) forwards;
+        }
+        @keyframes ar-cs-spin { from { transform: scale(1) rotate(0deg); } to { transform: scale(1.18) rotate(1080deg); } }
+        .ar-cutscene-sparkle, .ar-cutscene-star { width: 100%; height: 100%; filter: drop-shadow(0 0 18px var(--cs-color)); }
+        .ar-cutscene-flash {
+          animation: ar-cs-flash-bg 0.3s ease forwards, ar-cs-shake 0.3s ease;
+        }
+        @keyframes ar-cs-flash-bg { 0% { background: #000; } 65% { background: #fff; } 100% { background: #fff; opacity: 0; } }
+        @keyframes ar-cs-shake {
+          0%, 100% { transform: translate(0, 0); }
+          20% { transform: translate(-7px, 3px); }
+          40% { transform: translate(7px, -3px); }
+          60% { transform: translate(-5px, 4px); }
+          80% { transform: translate(5px, -4px); }
         }
 
         .ar-header { max-width: 460px; margin: 0 auto; padding: 24px 20px 4px; display: flex; align-items: flex-start; justify-content: space-between; }
@@ -880,6 +964,8 @@ export default function App() {
         @media (prefers-reduced-motion: reduce) {
           .ar-ring, .ar-reveal-text.ar-pop, .ar-toast, .ar-rarefind { animation: none !important; }
           .ar-stage, .ar-vignette-fixed { transition: none !important; }
+          .ar-cutscene-shape { transition: none !important; animation: none !important; opacity: 1 !important; transform: scale(1) !important; }
+          .ar-cutscene-flash { animation: none !important; background: #fff !important; }
         }
       `}</style>
 
@@ -887,6 +973,23 @@ export default function App() {
         className="ar-vignette-fixed"
         style={{ opacity: zoomed ? 1 : 0, backdropFilter: zoomed ? "blur(9px)" : "blur(0px)", transitionProperty: "opacity, backdrop-filter", transitionDuration: `${zoomDuration}ms`, transitionTimingFunction: zoomed ? "ease-in" : "ease-out" }}
       />
+
+      {cutscene && (
+        <div className={`ar-cutscene ar-cutscene-${cutscene.stage}`} key={cutscene.key}>
+          <div
+            className="ar-cutscene-shape"
+            style={{ "--cs-color": cutscene.color, "--spin-ms": `${CUTSCENE_DURATIONS[cutscene.type].spin}ms` }}
+          >
+            {cutscene.type === "star" ? (
+              <Star className="ar-cutscene-star" fill={cutscene.color} color={cutscene.color} strokeWidth={1} />
+            ) : (
+              <svg viewBox="0 0 100 100" className="ar-cutscene-sparkle">
+                <path d={sparklePath(cutscene.type === "six" ? 6 : 4)} fill={cutscene.color} />
+              </svg>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="ar-stage" style={{ transform: zoomed ? `scale(${PEAK_SCALE})` : "scale(1)", transitionProperty: "transform", transitionDuration: `${zoomDuration}ms`, transitionTimingFunction: zoomed ? "linear" : "ease-out" }}>
         <header className="ar-header">
