@@ -148,8 +148,76 @@ const defaultData = () => ({
   settings: { sound: true },
   playSeconds: 0,
   luckyCounter: 0,
+  aether: 0,
+  totalAetherEarned: 0,
   version: 1,
 });
+
+/* ---------------------------------------------------------------------- */
+/* Aether economy                                                           */
+/* ---------------------------------------------------------------------- */
+
+// Discovery bonus (first time pulling an aura) — per tier, base vs mutation
+const DISCOVERY_BONUS = [
+  { base: 3,       mutation: 5       }, // Basic
+  { base: 15,      mutation: 25      }, // Epic
+  { base: 50,      mutation: 80      }, // Unique
+  { base: 180,     mutation: 280     }, // Legendary
+  { base: 600,     mutation: 900     }, // Mythic
+  { base: 2000,    mutation: 3000    }, // Exalted
+  { base: 7000,    mutation: 10000   }, // Glorious
+  { base: 25000,   mutation: 37000   }, // Transcendent
+  { base: 100000,  mutation: 150000  }, // Dimensional
+];
+
+// Duplicate conversion — Aether per extra pull (capped at 50 per aura)
+const DUPLICATE_BONUS = [0, 2, 8, 30, 100, 350, 1000, 3500, 15000];
+const DUPLICATE_CAP = 50; // max conversions per aura
+
+// Achievement Aether rewards keyed by achievement id
+const ACHIEVEMENT_AETHER = {
+  roll_10:             30,
+  roll_100:            150,
+  roll_1000:           800,
+  roll_10000:          5000,
+  tier_epic:           60,
+  tier_unique:         200,
+  tier_legendary:      700,
+  tier_mythic:         2500,
+  tier_exalted:        10000,
+  tier_glorious:       40000,
+  tier_transcendent:   150000,
+  tier_dimensional:    600000,
+  collect_all:         500000,
+};
+
+// Roll-streak milestone bonuses
+const STREAK_BONUSES = [
+  { every: 1000, reward: 150 },
+  { every: 100,  reward: 25  },
+  { every: 10,   reward: 5   },
+];
+
+function calcRollAether(totalRolls, isLucky) {
+  let gain = 1; // base: every roll
+  if (isLucky) gain += 10;
+  for (const { every, reward } of STREAK_BONUSES) {
+    if (totalRolls % every === 0) { gain += reward; break; }
+  }
+  return gain;
+}
+
+function calcAuraAether(aura, prevCount) {
+  const tier = aura.tier;
+  const isMutation = !!aura.mutationOf;
+  if (prevCount === 0) {
+    // first discovery
+    return isMutation ? DISCOVERY_BONUS[tier].mutation : DISCOVERY_BONUS[tier].base;
+  }
+  // duplicate conversion (capped)
+  if (prevCount >= DUPLICATE_CAP) return 0;
+  return DUPLICATE_BONUS[tier];
+}
 
 const LUCKY_EVERY = 10;
 const LUCKY_MULTIPLIER = 5;
@@ -379,6 +447,7 @@ export default function App() {
   const [popKey, setPopKey] = useState(0);
   const [currentRollLucky, setCurrentRollLucky] = useState(false);
   const [headerBadgeAuraId, setHeaderBadgeAuraId] = useState(null);
+  const [aetherPopup, setAetherPopup] = useState(null); // { amount, isNew, key }
   const currentRollRef = useRef(null);
 
   // zoom: a single boolean target + the transition duration to reach it.
@@ -497,13 +566,34 @@ export default function App() {
      time, only once the result is actually revealed (or an interrupted
      roll is force-revealed by cancelRoll below), so the inventory/best-aura
      bookkeeping never gets ahead of what's on screen */
+  const aetherPopRef = useRef(null); // { amount, isNew } — read by revealNow to fire popup
+
   const applyRollResult = useCallback((aura, isLucky) => {
     setData((prev) => {
+      const newTotalRolls = prev.totalRolls + 1;
       const newInventory = { ...prev.inventory, [aura.id]: (prev.inventory[aura.id] || 0) + 1 };
       const bestChance = prev.bestAuraId ? AURAS.find((a) => a.id === prev.bestAuraId).chance : 0;
       const newBest = aura.chance > bestChance ? aura.id : prev.bestAuraId;
       const newLuckyCounter = isLucky ? 0 : (prev.luckyCounter ?? 0) + 1;
-      return { ...prev, inventory: newInventory, bestAuraId: newBest, totalRolls: prev.totalRolls + 1, luckyCounter: newLuckyCounter };
+
+      // ── Aether ──
+      const rollGain = calcRollAether(newTotalRolls, isLucky);
+      const prevCount = prev.inventory[aura.id] || 0;
+      const auraGain = calcAuraAether(aura, prevCount);
+      const totalGain = rollGain + auraGain;
+
+      // stash for popup (read in revealNow)
+      aetherPopRef.current = { amount: totalGain, isNew: prevCount === 0 };
+
+      return {
+        ...prev,
+        inventory: newInventory,
+        bestAuraId: newBest,
+        totalRolls: newTotalRolls,
+        luckyCounter: newLuckyCounter,
+        aether: (prev.aether ?? 0) + totalGain,
+        totalAetherEarned: (prev.totalAetherEarned ?? 0) + totalGain,
+      };
     });
   }, []);
 
@@ -560,6 +650,13 @@ export default function App() {
         if (currentRollRef.current) {
           applyRollResult(currentRollRef.current.aura, currentRollRef.current.isLucky);
           currentRollRef.current = null;
+          // fire Aether popup after state is written
+          setTimeout(() => {
+            if (aetherPopRef.current) {
+              setAetherPopup({ ...aetherPopRef.current, key: Math.random() });
+              aetherPopRef.current = null;
+            }
+          }, 0);
         }
         setPopKey((k) => k + 1);
         playTick("land");
@@ -689,8 +786,14 @@ export default function App() {
     if (!loaded) return;
     const newly = ACHIEVEMENTS_DEF.filter((a) => !data.achievementsUnlocked.includes(a.id) && a.check(data));
     if (newly.length > 0) {
-      setData((prev) => ({ ...prev, achievementsUnlocked: [...prev.achievementsUnlocked, ...newly.map((a) => a.id)] }));
-      setToast(newly[0]);
+      const aetherReward = newly.reduce((sum, a) => sum + (ACHIEVEMENT_AETHER[a.id] ?? 0), 0);
+      setData((prev) => ({
+        ...prev,
+        achievementsUnlocked: [...prev.achievementsUnlocked, ...newly.map((a) => a.id)],
+        aether: (prev.aether ?? 0) + aetherReward,
+        totalAetherEarned: (prev.totalAetherEarned ?? 0) + aetherReward,
+      }));
+      setToast({ ...newly[0], aetherReward });
     }
   }, [data.totalRolls, data.inventory, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -709,6 +812,12 @@ export default function App() {
     const t = setTimeout(() => setRareFind(null), 4000);
     return () => clearTimeout(t);
   }, [rareFind]);
+
+  useEffect(() => {
+    if (!aetherPopup) return;
+    const t = setTimeout(() => setAetherPopup(null), 1800);
+    return () => clearTimeout(t);
+  }, [aetherPopup]);
 
   const bestAura = data.bestAuraId ? AURAS.find((a) => a.id === data.bestAuraId) : null;
   const badgeAura = headerBadgeAuraId ? AURAS.find((a) => a.id === headerBadgeAuraId) : null;
@@ -1125,12 +1234,64 @@ export default function App() {
         .ar-toast-title { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.6); }
         .ar-toast-desc { font-size: 13px; font-weight: 600; }
 
+        /* ── Header right column (nav + aether badge) ── */
+        .ar-header-right {
+          display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+        }
+
+        /* ── Aether badge (below settings button) ── */
+        .ar-aether-badge {
+          display: flex; align-items: center; gap: 5px;
+          background: var(--fill);
+          border: 1.5px solid var(--line);
+          border-radius: 20px;
+          padding: 5px 11px 5px 9px;
+          font-size: 13px; font-weight: 700;
+          font-feature-settings: "tnum" 1;
+          letter-spacing: -0.01em;
+          color: var(--ink);
+        }
+        .ar-aether-icon { display: block; flex: 0 0 auto; color: var(--ink); }
+        .ar-aether-amount { color: var(--ink); }
+
+        /* ── Aether popup (floats above roll button) ── */
+        .ar-aether-popup {
+          position: fixed;
+          bottom: 120px; left: 50%; transform: translateX(-50%);
+          background: var(--ink); color: #fff;
+          font-size: 14px; font-weight: 700;
+          padding: 7px 16px;
+          border-radius: 20px;
+          pointer-events: none;
+          z-index: 62;
+          white-space: nowrap;
+          animation: ar-aether-pop 1.8s ease forwards;
+        }
+        .ar-aether-popup-new { color: #FFCC00; }
+        @keyframes ar-aether-pop {
+          0%   { opacity: 0; transform: translate(-50%, 10px); }
+          15%  { opacity: 1; transform: translate(-50%, 0px); }
+          70%  { opacity: 1; transform: translate(-50%, -8px); }
+          100% { opacity: 0; transform: translate(-50%, -18px); }
+        }
+
+        /* ── Achievement toast Aether line ── */
+        .ar-toast-aether {
+          font-size: 12px; font-weight: 700;
+          color: #FFCC00;
+          margin-top: 2px;
+        }
+
+        /* ── Aether stat card accent ── */
+        .ar-stat-card-aether { border-color: rgba(0,0,0,0.15); }
+
         @media (prefers-reduced-motion: reduce) {
           .ar-ring, .ar-reveal-text.ar-pop, .ar-toast, .ar-rarefind { animation: none !important; }
           .ar-stage, .ar-vignette-fixed { transition: none !important; }
           .ar-cutscene-shape { transition: none !important; animation: none !important; opacity: 1 !important; transform: scale(1) !important; }
           .ar-cutscene-flash { animation: none !important; background: #fff !important; }
           .ar-stage.ar-shake { animation: none !important; }
+          .ar-aether-popup { animation: none !important; opacity: 1 !important; }
         }
       `}</style>
 
@@ -1171,20 +1332,28 @@ export default function App() {
             </div>
             <div className="ar-rolls-caption">{data.totalRolls.toLocaleString()} rolls so far</div>
           </div>
-          <nav className="ar-nav">
-            <button className={`ar-icon-btn ${view === "stats" ? "active" : ""}`} onClick={() => goToView("stats")} aria-label="Stats" disabled={blockingRoll}>
-              <BarChart3 size={17} />
-            </button>
-            <button className={`ar-icon-btn ${view === "collection" ? "active" : ""}`} onClick={() => goToView("collection")} aria-label="Collection" disabled={blockingRoll}>
-              <LayoutGrid size={17} />
-            </button>
-            <button className={`ar-icon-btn ${view === "achievements" ? "active" : ""}`} onClick={() => goToView("achievements")} aria-label="Achievements" disabled={blockingRoll}>
-              <Trophy size={17} />
-            </button>
-            <button className={`ar-icon-btn ${view === "settings" ? "active" : ""}`} onClick={() => goToView("settings")} aria-label="Settings" disabled={blockingRoll}>
-              <SettingsIcon size={17} />
-            </button>
-          </nav>
+          <div className="ar-header-right">
+            <nav className="ar-nav">
+              <button className={`ar-icon-btn ${view === "stats" ? "active" : ""}`} onClick={() => goToView("stats")} aria-label="Stats" disabled={blockingRoll}>
+                <BarChart3 size={17} />
+              </button>
+              <button className={`ar-icon-btn ${view === "collection" ? "active" : ""}`} onClick={() => goToView("collection")} aria-label="Collection" disabled={blockingRoll}>
+                <LayoutGrid size={17} />
+              </button>
+              <button className={`ar-icon-btn ${view === "achievements" ? "active" : ""}`} onClick={() => goToView("achievements")} aria-label="Achievements" disabled={blockingRoll}>
+                <Trophy size={17} />
+              </button>
+              <button className={`ar-icon-btn ${view === "settings" ? "active" : ""}`} onClick={() => goToView("settings")} aria-label="Settings" disabled={blockingRoll}>
+                <SettingsIcon size={17} />
+              </button>
+            </nav>
+            <div className="ar-aether-badge" aria-label={`${(data.aether ?? 0).toLocaleString()} Aether`}>
+              <svg className="ar-aether-icon" width="13" height="16" viewBox="0 0 13 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="ar-aether-amount">{(data.aether ?? 0).toLocaleString()}</span>
+            </div>
+          </div>
         </header>
 
         <main className="ar-main">
@@ -1226,6 +1395,19 @@ export default function App() {
                     <div className="ar-stat-card">
                       <div className="ar-stat-label">Collected</div>
                       <div className="ar-stat-value">{collectedCount} / {AURAS.length}</div>
+                    </div>
+                    <div className="ar-stat-card ar-stat-card-aether">
+                      <div className="ar-stat-label" style={{display:"flex",alignItems:"center",gap:4}}>
+                        <svg width="10" height="12" viewBox="0 0 13 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{flexShrink:0}}>
+                          <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Aether
+                      </div>
+                      <div className="ar-stat-value">{(data.aether ?? 0).toLocaleString()}</div>
+                    </div>
+                    <div className="ar-stat-card">
+                      <div className="ar-stat-label">Total earned</div>
+                      <div className="ar-stat-value">{(data.totalAetherEarned ?? 0).toLocaleString()}</div>
                     </div>
                   </div>
                 </div>
@@ -1406,7 +1588,25 @@ export default function App() {
           <div>
             <div className="ar-toast-title">ACHIEVEMENT</div>
             <div className="ar-toast-desc">{toast.name}</div>
+            {toast.aetherReward > 0 && (
+              <div className="ar-toast-aether">
+                +{toast.aetherReward.toLocaleString()}
+                <svg width="9" height="11" viewBox="0 0 13 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{display:"inline-block",verticalAlign:"middle",marginLeft:3}}>
+                  <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            )}
           </div>
+        </div>
+      )}
+
+      {aetherPopup && (
+        <div className="ar-aether-popup" key={aetherPopup.key}>
+          {aetherPopup.isNew && <span className="ar-aether-popup-new">NEW </span>}
+          +{aetherPopup.amount.toLocaleString()}
+          <svg width="11" height="13" viewBox="0 0 13 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{display:"inline-block",verticalAlign:"middle",marginLeft:4}}>
+            <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
       )}
     </div>
