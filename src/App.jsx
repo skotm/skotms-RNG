@@ -357,6 +357,9 @@ export default function App() {
   }, []);
 
   /* ---- save (debounced) ---- */
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
   useEffect(() => {
     if (!loaded) return;
     const t = setTimeout(() => {
@@ -364,6 +367,28 @@ export default function App() {
     }, 500);
     return () => clearTimeout(t);
   }, [data, loaded]);
+
+  /* belt-and-suspenders: the debounce above could miss the very last change
+     if the tab is closed within that window, so force an immediate save
+     the moment the tab is hidden or the page is being torn down */
+  useEffect(() => {
+    const flush = () => {
+      try {
+        window.storage.set(STORAGE_KEY, JSON.stringify(dataRef.current), false).catch(() => {});
+      } catch (e) {
+        /* ignore */
+      }
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, []);
 
   /* ---- play time ---- */
   useEffect(() => {
