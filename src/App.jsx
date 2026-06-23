@@ -178,6 +178,10 @@ function formatChance(chance) {
   return `1 in ${chance.toLocaleString()}`;
 }
 
+function formatHiddenChance(chance) {
+  return `1 in ${"?".repeat(String(chance).length)}`;
+}
+
 function effectFor(tier) {
   if (tier <= 2) return { rings: 0, duration: 450 };
   if (tier === 3) return { rings: 1, duration: 800 };
@@ -316,21 +320,22 @@ function MutationTag() {
 
 function CollectionRow({ aura, owned, nested, onPreview }) {
   const color = colorOf(aura);
+  const found = owned > 0;
   return (
-    <div className={`ar-row ${owned ? "" : "locked"} ${nested ? "ar-row-nested" : ""}`}>
+    <div className={`ar-row ${found ? "" : "locked"} ${nested ? "ar-row-nested" : ""}`}>
       <div className="ar-row-main">
-        {nested && <span className="ar-row-branch-glyph" aria-hidden="true">↳</span>}
+        {nested && <span className="ar-row-branch-glyph" aria-hidden="true">└</span>}
         <Dot color={color} size={nested ? 9 : 11} />
         <div className="ar-row-text">
           <span className="ar-row-name-line">
-            <span className="ar-row-name">{owned ? aura.name : "Not found yet"}</span>
-            {owned && aura.mutationOf && <MutationTag />}
+            <span className="ar-row-name">{found ? aura.name : "Not found yet"}</span>
+            {found && aura.mutationOf && <MutationTag />}
           </span>
-          <span className="ar-row-sub">{formatChance(aura.chance)}</span>
+          <span className="ar-row-sub">{found ? formatChance(aura.chance) : formatHiddenChance(aura.chance)}</span>
         </div>
       </div>
       <div className="ar-row-end">
-        <span className="ar-row-trail">{owned ? `×${owned}` : ""}</span>
+        <span className="ar-row-trail">{found ? `×${owned}` : ""}</span>
         <button className="ar-preview-btn" onClick={onPreview} aria-label={`Preview ${aura.name} effect`}>
           <Eye size={14} />
         </button>
@@ -839,7 +844,7 @@ export default function App() {
         .ar-header { max-width: 460px; margin: 0 auto; padding: 24px 20px 4px; display: flex; align-items: flex-start; justify-content: space-between; }
         .ar-header-left { display: flex; flex-direction: column; gap: 8px; }
         .ar-badge-row { display: flex; align-items: center; gap: 9px; }
-        .ar-badge-text { display: flex; align-items: center; gap: 6px; }
+        .ar-badge-text { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
         .ar-badge { width: 56px; height: 56px; border-radius: 18px; border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .ar-badge-chance { font-size: 13px; font-weight: 500; color: var(--ink-soft); font-feature-settings: "tnum" 1; }
 
@@ -1260,7 +1265,7 @@ export default function App() {
                             return (
                               <React.Fragment key={a.id}>
                                 <CollectionRow aura={a} owned={owned} nested={false} onPreview={() => previewAura(a)} />
-                                {mutation && (
+                                {mutation && mutationOwned > 0 && (
                                   <CollectionRow aura={mutation} owned={mutationOwned} nested={true} onPreview={() => previewAura(mutation)} />
                                 )}
                               </React.Fragment>
