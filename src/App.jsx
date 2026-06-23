@@ -336,24 +336,18 @@ export default function App() {
 
   /* ---- load ---- */
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await window.storage.get(STORAGE_KEY, false);
-        if (res && res.value && !cancelled) {
-          const parsed = JSON.parse(res.value);
-          const merged = { ...defaultData(), ...parsed, settings: { ...defaultData().settings, ...(parsed.settings || {}) } };
-          setData(merged);
-          setHeaderBadgeAuraId(merged.bestAuraId);
-        }
-      } catch (e) {
-        /* nothing saved yet */
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const merged = { ...defaultData(), ...parsed, settings: { ...defaultData().settings, ...(parsed.settings || {}) } };
+        setData(merged);
+        setHeaderBadgeAuraId(merged.bestAuraId);
       }
-      if (!cancelled) setLoaded(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    } catch (e) {
+      /* nothing saved yet, or storage unavailable */
+    }
+    setLoaded(true);
   }, []);
 
   /* ---- save (debounced) ---- */
@@ -363,7 +357,11 @@ export default function App() {
   useEffect(() => {
     if (!loaded) return;
     const t = setTimeout(() => {
-      window.storage.set(STORAGE_KEY, JSON.stringify(data), false).catch(() => {});
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        /* storage full or unavailable */
+      }
     }, 500);
     return () => clearTimeout(t);
   }, [data, loaded]);
@@ -374,7 +372,7 @@ export default function App() {
   useEffect(() => {
     const flush = () => {
       try {
-        window.storage.set(STORAGE_KEY, JSON.stringify(dataRef.current), false).catch(() => {});
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataRef.current));
       } catch (e) {
         /* ignore */
       }
@@ -677,7 +675,11 @@ export default function App() {
     setRevealText("—");
     setRevealAuraId(null);
     setResetArmed(false);
-    window.storage.set(STORAGE_KEY, JSON.stringify(fresh), false).catch(() => {});
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+    } catch (e) {
+      /* ignore */
+    }
   };
 
   return (
@@ -1291,4 +1293,3 @@ export default function App() {
     </div>
   );
 }
-
