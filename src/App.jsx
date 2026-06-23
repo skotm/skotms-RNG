@@ -113,12 +113,16 @@ const LUCKY_EVERY = 10;
 const LUCKY_MULTIPLIER = 5;
 
 function rollAura(luck = 1) {
-  const rand = Math.random();
-  const byRarity = [...AURAS].sort((a, b) => b.chance - a.chance);
-  for (const aura of byRarity) {
-    if (rand < luck / aura.chance) return aura;
+  const byRarity = [...AURAS].sort((a, b) => b.chance - a.chance); // rarest first
+  for (let pass = 0; pass < 100000; pass++) {
+    for (const aura of byRarity) {
+      const denom = Math.floor(aura.chance / luck);
+      if (denom <= 1) continue; // 確実当選になるオーラは判定対象から外す(Sol's RNG仕様)
+      if (Math.floor(Math.random() * denom) === 0) return aura; // オーラごとに毎回新しい乱数
+    }
+    // 1パスで誰も当選しなければ、最初からやり直す
   }
-  return AURAS[0];
+  return byRarity[byRarity.length - 1]; // フェイルセーフ（実質到達しない）
 }
 
 function formatTime(totalSeconds) {
