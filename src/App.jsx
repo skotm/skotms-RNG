@@ -69,8 +69,7 @@ const AURAS = [
 
   // --- Mutations — independent entries with their own fixed odds (Sol's RNG-style),
   // linked back to their base via mutationOf for collection-branching display ---
-  { id: "common_echo", name: "Common : Echo", chance: 12, tier: 0, mutationOf: "common" },
-  { id: "uncommon_glint", name: "Uncommon : Glint", chance: 48, tier: 0, mutationOf: "uncommon" },
+  // (common_echo 1/12, uncommon_glint 1/48 は1/100以上のため削除)
   { id: "breeze_gale", name: "Breeze : Gale", chance: 150, tier: 0, mutationOf: "breeze" },
   { id: "pebble_fossil", name: "Pebble : Fossil", chance: 360, tier: 0, mutationOf: "pebble" },
   { id: "drizzle_monsoon", name: "Drizzle : Monsoon", chance: 900, tier: 0, mutationOf: "drizzle" },
@@ -222,13 +221,15 @@ function calcAuraAether(aura, prevCount) {
 const LUCKY_EVERY = 10;
 const LUCKY_MULTIPLIER = 5;
 
-function rollAura(luck = 1) {
+function rollAura(luck = 1, inventory = {}) {
   const byRarity = [...AURAS].sort((a, b) => b.chance - a.chance); // rarest first
   for (let pass = 0; pass < 100000; pass++) {
     for (const aura of byRarity) {
+      // ベースオーラ未取得の場合、その変異オーラは抽選対象から除外
+      if (aura.mutationOf && !inventory[aura.mutationOf]) continue;
       const denom = Math.floor(aura.chance / luck);
       if (denom <= 1) continue; // 確実当選になるオーラは判定対象から外す(Sol's RNG仕様)
-      if (Math.floor(Math.random() * denom) === 0) return aura; // オーラごとに毎回新しい乱数
+      if (Math.floor(Math.random() * denom) === 0) return aura;
     }
     // 1パスで誰も当選しなければ、最初からやり直す
   }
@@ -409,6 +410,29 @@ function CollectionRow({ aura, owned, nested, onPreview }) {
         </button>
       </div>
     </div>
+  );
+}
+
+/* SVG雫アイコン — viewBoxをstroke幅1.5の半分(0.75)ずつ余白をとって欠けを防ぐ */
+function DropletIcon({ size = 14, style }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="-0.75 -0.75 14.5 17.5"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      style={{ display: "block", flexShrink: 0, ...style }}
+    >
+      <path
+        d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -739,7 +763,7 @@ export default function App() {
     (totalMs) => {
       if (spinningRef.current) return;
       const isLucky = luckyCounterRef.current >= LUCKY_EVERY - 1;
-      const aura = rollAura(isLucky ? LUCKY_MULTIPLIER : 1);
+      const aura = rollAura(isLucky ? LUCKY_MULTIPLIER : 1, dataRef.current.inventory);
       currentRollRef.current = { aura, isLucky };
       setCurrentRollLucky(isLucky);
       if (!autoFastRef.current) setView("roll");
@@ -1186,6 +1210,15 @@ export default function App() {
         .ar-ach-row { padding: 13px 14px; border-bottom: 1px solid var(--line); }
         .ar-ach-row:last-child { border-bottom: none; }
         .ar-ach-top { display: flex; align-items: center; gap: 10px; }
+        .ar-ach-reward {
+          display: inline-flex; align-items: center; gap: 4px;
+          margin: 5px 0 0 30px;
+          font-size: 12px; font-weight: 700;
+          color: var(--ink-soft);
+          font-feature-settings: "tnum" 1;
+        }
+        .ar-ach-reward::before { content: "+"; }
+        .ar-ach-reward.done { color: var(--ink); opacity: 0.45; }
         .ar-ach-name { font-size: 14px; font-weight: 600; flex: 1; }
         .ar-ach-desc { font-size: 12px; color: var(--ink-soft); margin: 3px 0 0 26px; }
         .ar-bar-track { height: 4px; background: var(--fill); border-radius: 2px; overflow: hidden; margin: 8px 0 0 26px; }
@@ -1348,9 +1381,7 @@ export default function App() {
               </button>
             </nav>
             <div className="ar-aether-badge" aria-label={`${(data.aether ?? 0).toLocaleString()} Aether`}>
-              <svg className="ar-aether-icon" width="13" height="16" viewBox="0 0 13 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <DropletIcon size={14} style={{ color: "var(--ink)" }} />
               <span className="ar-aether-amount">{(data.aether ?? 0).toLocaleString()}</span>
             </div>
           </div>
@@ -1398,9 +1429,7 @@ export default function App() {
                     </div>
                     <div className="ar-stat-card ar-stat-card-aether">
                       <div className="ar-stat-label" style={{display:"flex",alignItems:"center",gap:4}}>
-                        <svg width="10" height="12" viewBox="0 0 13 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{flexShrink:0}}>
-                          <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+                        <DropletIcon size={11} />
                         Aether
                       </div>
                       <div className="ar-stat-value">{(data.aether ?? 0).toLocaleString()}</div>
@@ -1469,6 +1498,7 @@ export default function App() {
                     {ACHIEVEMENTS_DEF.map((a) => {
                       const done = data.achievementsUnlocked.includes(a.id);
                       const progress = Math.min(a.metric(data), a.goal);
+                      const reward = ACHIEVEMENT_AETHER[a.id] ?? 0;
                       return (
                         <div className="ar-ach-row" key={a.id}>
                           <div className="ar-ach-top">
@@ -1477,6 +1507,12 @@ export default function App() {
                             <span className="ar-row-trail">{progress}/{a.goal}</span>
                           </div>
                           <div className="ar-ach-desc">{a.desc}</div>
+                          {reward > 0 && (
+                            <div className={`ar-ach-reward ${done ? "done" : ""}`}>
+                              <DropletIcon size={10} style={{ flexShrink: 0 }} />
+                              {reward.toLocaleString()}
+                            </div>
+                          )}
                           {!done && (
                             <div className="ar-bar-track">
                               <div className="ar-bar-fill" style={{ width: `${(progress / a.goal) * 100}%` }} />
@@ -1591,9 +1627,7 @@ export default function App() {
             {toast.aetherReward > 0 && (
               <div className="ar-toast-aether">
                 +{toast.aetherReward.toLocaleString()}
-                <svg width="9" height="11" viewBox="0 0 13 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{display:"inline-block",verticalAlign:"middle",marginLeft:3}}>
-                  <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <DropletIcon size={10} style={{display:"inline-block",verticalAlign:"middle",marginLeft:3}} />
               </div>
             )}
           </div>
@@ -1604,9 +1638,7 @@ export default function App() {
         <div className="ar-aether-popup" key={aetherPopup.key}>
           {aetherPopup.isNew && <span className="ar-aether-popup-new">NEW </span>}
           +{aetherPopup.amount.toLocaleString()}
-          <svg width="11" height="13" viewBox="0 0 13 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{display:"inline-block",verticalAlign:"middle",marginLeft:4}}>
-            <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <DropletIcon size={12} style={{display:"inline-block",verticalAlign:"middle",marginLeft:4}} />
         </div>
       )}
     </div>
