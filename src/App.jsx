@@ -66,6 +66,48 @@ const AURAS = [
   { id: "voidheart", name: "Voidheart", chance: 7000000000, tier: 7 },
   // Dimensional — 7,500,000,000 and beyond, the single apex aura
   { id: "omniverse", name: "Omniverse", chance: 9000000000, tier: 8 },
+
+  // --- Mutations — independent entries with their own fixed odds (Sol's RNG-style),
+  // linked back to their base via mutationOf for collection-branching display ---
+  { id: "common_echo", name: "Common : Echo", chance: 12, tier: 0, mutationOf: "common" },
+  { id: "uncommon_glint", name: "Uncommon : Glint", chance: 48, tier: 0, mutationOf: "uncommon" },
+  { id: "breeze_gale", name: "Breeze : Gale", chance: 150, tier: 0, mutationOf: "breeze" },
+  { id: "pebble_fossil", name: "Pebble : Fossil", chance: 360, tier: 0, mutationOf: "pebble" },
+  { id: "drizzle_monsoon", name: "Drizzle : Monsoon", chance: 900, tier: 0, mutationOf: "drizzle" },
+  { id: "flicker_strobe", name: "Flicker : Strobe", chance: 2400, tier: 1, mutationOf: "flicker" },
+  { id: "ember_wildfire", name: "Ember : Wildfire", chance: 6000, tier: 1, mutationOf: "ember" },
+  { id: "frostbite_glacial", name: "Frostbite : Glacial", chance: 13200, tier: 2, mutationOf: "frostbite" },
+  { id: "voltage_overcurrent", name: "Voltage : Overcurrent", chance: 21000, tier: 2, mutationOf: "voltage" },
+  { id: "mossglow_verdant", name: "Mossglow : Verdant", chance: 31200, tier: 2, mutationOf: "mossglow" },
+  { id: "cinder_ashfall", name: "Cinder : Ashfall", chance: 48000, tier: 2, mutationOf: "cinder" },
+  { id: "riptide_maelstrom", name: "Riptide : Maelstrom", chance: 72000, tier: 2, mutationOf: "riptide" },
+  { id: "permafrost_absolute_zero", name: "Permafrost : Absolute Zero", chance: 132000, tier: 3, mutationOf: "permafrost" },
+  { id: "quartzline_prism", name: "Quartzline : Prism", chance: 228000, tier: 3, mutationOf: "quartzline" },
+  { id: "eclipse_shard_umbra", name: "Eclipse Shard : Umbra", chance: 330000, tier: 3, mutationOf: "eclipse_shard" },
+  { id: "stormcaller_thunderhead", name: "Stormcaller : Thunderhead", chance: 480000, tier: 3, mutationOf: "stormcaller" },
+  { id: "wraith_banshee", name: "Wraith : Banshee", chance: 720000, tier: 3, mutationOf: "wraith" },
+  { id: "aurora_veil_polaris", name: "Aurora Veil : Polaris", chance: 1500000, tier: 4, mutationOf: "aurora_veil" },
+  { id: "obsidian_onyx", name: "Obsidian : Onyx", chance: 2520000, tier: 4, mutationOf: "obsidian" },
+  { id: "solstice_equinox", name: "Solstice : Equinox", chance: 3600000, tier: 4, mutationOf: "solstice" },
+  { id: "phantom_edge_specter", name: "Phantom Edge : Specter", chance: 5100000, tier: 4, mutationOf: "phantom_edge" },
+  { id: "leviathan_kraken", name: "Leviathan : Kraken", chance: 7200000, tier: 4, mutationOf: "leviathan" },
+  { id: "seraph_wing_archangel", name: "Seraph Wing : Archangel", chance: 15000000, tier: 5, mutationOf: "seraph_wing" },
+  { id: "inferno_core_pyroclasm", name: "Inferno Core : Pyroclasm", chance: 25200000, tier: 5, mutationOf: "inferno_core" },
+  { id: "tempest_crown_cataclysm", name: "Tempest Crown : Cataclysm", chance: 36000000, tier: 5, mutationOf: "tempest_crown" },
+  { id: "wyrmscale_drakonic", name: "Wyrmscale : Drakonic", chance: 51000000, tier: 5, mutationOf: "wyrmscale" },
+  { id: "sovereign_imperator", name: "Sovereign : Imperator", chance: 90000000, tier: 5, mutationOf: "sovereign" },
+  { id: "paragon_exemplar", name: "Paragon : Exemplar", chance: 210000000, tier: 6, mutationOf: "paragon" },
+  { id: "halo_drift_seraphim", name: "Halo Drift : Seraphim", chance: 330000000, tier: 6, mutationOf: "halo_drift" },
+  { id: "eternum_infinitum", name: "Eternum : Infinitum", chance: 480000000, tier: 6, mutationOf: "eternum" },
+  { id: "genesis_origin", name: "Genesis : Origin", chance: 900000000, tier: 6, mutationOf: "genesis" },
+  { id: "zenith_pulse_supernova", name: "Zenith Pulse : Supernova", chance: 2100000000, tier: 7, mutationOf: "zenith_pulse" },
+  { id: "singularity_event_horizon", name: "Singularity : Event Horizon", chance: 3600000000, tier: 7, mutationOf: "singularity" },
+  { id: "empyrean_elysium", name: "Empyrean : Elysium", chance: 5100000000, tier: 7, mutationOf: "empyrean" },
+  { id: "oblivion_abyss", name: "Oblivion : Abyss", chance: 7200000000, tier: 7, mutationOf: "oblivion" },
+  { id: "nullspace_void_rift", name: "Nullspace : Void Rift", chance: 15000000000, tier: 8, mutationOf: "nullspace" },
+  { id: "omega_alpha", name: "Omega : Alpha", chance: 27000000000, tier: 8, mutationOf: "omega" },
+  { id: "voidheart_entropy", name: "Voidheart : Entropy", chance: 42000000000, tier: 8, mutationOf: "voidheart" },
+  { id: "omniverse_multiverse", name: "Omniverse : Multiverse", chance: 54000000000, tier: 8, mutationOf: "omniverse" },
 ];
 
 const colorOf = (aura) => TIERS[aura.tier].color;
@@ -231,6 +273,7 @@ function Dot({ color, size = 9 }) {
 function AuraVisual({ aura, size = 100 }) {
   const tier = aura.tier;
   const isChromatic = tier === 8;
+  const isMutation = !!aura.mutationOf;
   const color = isChromatic ? "#FF375F" : colorOf(aura);
   const particleCount = tier <= 1 ? 4 : tier <= 3 ? 6 : tier <= 5 ? 9 : tier === 6 ? 12 : 16;
   const ringCount = tier <= 1 ? 0 : tier <= 3 ? 1 : tier <= 5 ? 2 : 3;
@@ -248,7 +291,7 @@ function AuraVisual({ aura, size = 100 }) {
   );
 
   return (
-    <div className={`aura-visual ${isChromatic ? "aura-chromatic" : ""}`} style={{ width: size, height: size, "--aura-color": color }}>
+    <div className={`aura-visual ${isChromatic ? "aura-chromatic" : ""} ${isMutation ? "aura-mutated" : ""}`} style={{ width: size, height: size, "--aura-color": color }}>
       <div className="aura-glow" />
       {Array.from({ length: ringCount }).map((_, i) => (
         <div key={i} className={`aura-ring aura-ring-${i}`} />
@@ -261,6 +304,36 @@ function AuraVisual({ aura, size = 100 }) {
             style={{ left: `${p.left}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s`, "--drift": `${p.drift}px` }}
           />
         ))}
+      </div>
+      {isMutation && <div className="aura-mutated-shard" />}
+    </div>
+  );
+}
+
+function MutationTag() {
+  return <span className="ar-mutation-tag">MUTATED</span>;
+}
+
+function CollectionRow({ aura, owned, nested, onPreview }) {
+  const color = colorOf(aura);
+  return (
+    <div className={`ar-row ${owned ? "" : "locked"} ${nested ? "ar-row-nested" : ""}`}>
+      <div className="ar-row-main">
+        {nested && <span className="ar-row-branch-glyph" aria-hidden="true">↳</span>}
+        <Dot color={color} size={nested ? 9 : 11} />
+        <div className="ar-row-text">
+          <span className="ar-row-name-line">
+            <span className="ar-row-name">{owned ? aura.name : "Not found yet"}</span>
+            {owned && aura.mutationOf && <MutationTag />}
+          </span>
+          <span className="ar-row-sub">{formatChance(aura.chance)}</span>
+        </div>
+      </div>
+      <div className="ar-row-end">
+        <span className="ar-row-trail">{owned ? `×${owned}` : ""}</span>
+        <button className="ar-preview-btn" onClick={onPreview} aria-label={`Preview ${aura.name} effect`}>
+          <Eye size={14} />
+        </button>
       </div>
     </div>
   );
@@ -766,6 +839,7 @@ export default function App() {
         .ar-header { max-width: 460px; margin: 0 auto; padding: 24px 20px 4px; display: flex; align-items: flex-start; justify-content: space-between; }
         .ar-header-left { display: flex; flex-direction: column; gap: 8px; }
         .ar-badge-row { display: flex; align-items: center; gap: 9px; }
+        .ar-badge-text { display: flex; align-items: center; gap: 6px; }
         .ar-badge { width: 56px; height: 56px; border-radius: 18px; border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .ar-badge-chance { font-size: 13px; font-weight: 500; color: var(--ink-soft); font-feature-settings: "tnum" 1; }
 
@@ -802,8 +876,34 @@ export default function App() {
         .aura-chromatic { animation: aura-hue 3.2s linear infinite; }
         @keyframes aura-hue { from { filter: hue-rotate(0deg) saturate(1.7); } to { filter: hue-rotate(360deg) saturate(1.7); } }
 
+        /* mutation-exclusive treatment — a fast holographic shard ring, distinct
+           from the smooth tier rings, so a mutated pull reads as "different"
+           at a glance regardless of which tier color it carries */
+        .aura-mutated-shard {
+          position: absolute; inset: -10%;
+          border-radius: 50%;
+          background: conic-gradient(from 0deg, #fff, var(--aura-color), #fff, var(--aura-color), #fff);
+          -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+          animation: aura-mutate-spin 1.1s linear infinite;
+          opacity: 0.9;
+          pointer-events: none;
+        }
+        @keyframes aura-mutate-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .aura-mutated .aura-glow { animation: aura-pulse 1.1s ease-in-out infinite; }
+        .ar-mutation-tag {
+          display: inline-flex; align-items: center;
+          font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+          padding: 2px 6px; border-radius: 6px;
+          color: #fff;
+          background: linear-gradient(120deg, #FF375F, #FFCC00, #34C759, #007AFF, #AF52DE, #FF375F);
+          background-size: 250% 100%;
+          animation: ar-mutation-tag-shift 2.4s linear infinite;
+        }
+        @keyframes ar-mutation-tag-shift { from { background-position: 0% 0; } to { background-position: 250% 0; } }
+
         @media (prefers-reduced-motion: reduce) {
-          .aura-glow, .aura-ring, .aura-particle, .aura-chromatic, .ar-roll-lucky-tag, .ar-roll-btn.lucky-glow { animation: none !important; }
+          .aura-glow, .aura-ring, .aura-particle, .aura-chromatic, .aura-mutated-shard, .ar-mutation-tag, .ar-roll-lucky-tag, .ar-roll-btn.lucky-glow { animation: none !important; }
         }
         .ar-rolls-caption { font-size: 13px; color: var(--ink-soft); font-weight: 500; }
 
@@ -950,10 +1050,13 @@ export default function App() {
         .ar-row.locked { opacity: 0.4; }
         .ar-row-main { display: flex; align-items: center; gap: 10px; }
         .ar-row-text { display: flex; flex-direction: column; }
+        .ar-row-name-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .ar-row-name { font-size: 14px; font-weight: 600; }
         .ar-row-sub { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
         .ar-row-trail { font-size: 14px; font-weight: 600; color: var(--ink-soft); font-feature-settings: "tnum" 1; }
         .ar-row-end { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+        .ar-row-nested { padding-left: 30px; background: var(--row-nested-bg, rgba(127, 127, 127, 0.05)); }
+        .ar-row-branch-glyph { color: var(--ink-soft); font-size: 13px; line-height: 1; margin-right: -2px; }
         .ar-preview-btn {
           width: 26px; height: 26px;
           border-radius: 8px;
@@ -1056,7 +1159,10 @@ export default function App() {
           <div className="ar-header-left">
             <div className="ar-badge-row">
               <div className="ar-badge">{badgeAura && <AuraVisual aura={badgeAura} size={36} />}</div>
-              {badgeAura && <span className="ar-badge-chance">{formatChance(badgeAura.chance)}</span>}
+              <div className="ar-badge-text">
+                {badgeAura && <span className="ar-badge-chance">{formatChance(badgeAura.chance)}</span>}
+                {badgeAura && badgeAura.mutationOf && <MutationTag />}
+              </div>
             </div>
             <div className="ar-rolls-caption">{data.totalRolls.toLocaleString()} rolls so far</div>
           </div>
@@ -1090,6 +1196,7 @@ export default function App() {
                     {revealText}
                   </div>
                   {revealAura && <div className="ar-reveal-chance">{formatChance(revealAura.chance)}</div>}
+                  {revealAura && revealAura.mutationOf && <MutationTag />}
                 </div>
               </div>
             )}
@@ -1126,34 +1233,37 @@ export default function App() {
                 <div className="ar-panel-scroll">
                   <div className="ar-section-label">{collectedCount} of {AURAS.length} found</div>
                   {TIERS.map((tierInfo, tierIdx) => {
-                    const tierAuras = AURAS.filter((a) => a.tier === tierIdx);
-                    const tierOwned = tierAuras.filter((a) => data.inventory[a.id]).length;
+                    const baseAuras = AURAS.filter((a) => a.tier === tierIdx && !a.mutationOf);
+                    let totalCount = 0;
+                    let ownedCount = 0;
+                    baseAuras.forEach((a) => {
+                      totalCount += 1;
+                      if (data.inventory[a.id]) ownedCount += 1;
+                      const mutation = AURAS.find((m) => m.mutationOf === a.id);
+                      if (mutation) {
+                        totalCount += 1;
+                        if (data.inventory[mutation.id]) ownedCount += 1;
+                      }
+                    });
                     return (
                       <div key={tierInfo.name} style={{ marginBottom: 14 }}>
                         <div className="ar-tier-label">
                           <Dot color={tierInfo.color} size={9} />
                           {tierInfo.name}
-                          <span className="ar-tier-count">{tierOwned}/{tierAuras.length}</span>
+                          <span className="ar-tier-count">{ownedCount}/{totalCount}</span>
                         </div>
                         <div className="ar-group">
-                          {tierAuras.map((a) => {
+                          {baseAuras.map((a) => {
                             const owned = data.inventory[a.id] || 0;
+                            const mutation = AURAS.find((m) => m.mutationOf === a.id);
+                            const mutationOwned = mutation ? data.inventory[mutation.id] || 0 : 0;
                             return (
-                              <div key={a.id} className={`ar-row ${owned ? "" : "locked"}`}>
-                                <div className="ar-row-main">
-                                  <Dot color={tierInfo.color} size={11} />
-                                  <div className="ar-row-text">
-                                    <span className="ar-row-name">{owned ? a.name : "Not found yet"}</span>
-                                    <span className="ar-row-sub">{formatChance(a.chance)}</span>
-                                  </div>
-                                </div>
-                                <div className="ar-row-end">
-                                  <span className="ar-row-trail">{owned ? `×${owned}` : ""}</span>
-                                  <button className="ar-preview-btn" onClick={() => previewAura(a)} aria-label={`Preview ${a.name} effect`}>
-                                    <Eye size={14} />
-                                  </button>
-                                </div>
-                              </div>
+                              <React.Fragment key={a.id}>
+                                <CollectionRow aura={a} owned={owned} nested={false} onPreview={() => previewAura(a)} />
+                                {mutation && (
+                                  <CollectionRow aura={mutation} owned={mutationOwned} nested={true} onPreview={() => previewAura(mutation)} />
+                                )}
+                              </React.Fragment>
                             );
                           })}
                         </div>
