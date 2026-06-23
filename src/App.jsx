@@ -153,9 +153,9 @@ function cutsceneTypeFor(chance) {
 }
 
 const CUTSCENE_DURATIONS = {
-  four: { black: 220, spin: 1300, flash: 280 },
-  star: { black: 260, spin: 1700, flash: 320 },
-  six: { black: 300, spin: 2200, flash: 380 },
+  four: { black: 220, spin: 1700, flash: 280 },
+  star: { black: 260, spin: 2200, flash: 320 },
+  six: { black: 300, spin: 2800, flash: 380 },
 };
 
 /* an N-pointed concave burst/sparkle shape — each point is a sharp tip,
@@ -482,7 +482,7 @@ export default function App() {
             // right as it becomes visible
             revealNow();
             setShaking(true);
-            shakeTimeoutRef.current = setTimeout(() => setShaking(false), 320);
+            shakeTimeoutRef.current = setTimeout(() => setShaking(false), 620);
             cutsceneTimeoutRef.current = setTimeout(() => {
               setCutscene(null);
             }, dur.flash);
@@ -699,7 +699,7 @@ export default function App() {
         .ar-cutscene-shape { width: 38vmin; height: 38vmin; max-width: 220px; max-height: 220px; opacity: 0; transform: scale(0.5); transition: opacity .2s ease, transform .2s ease; }
         .ar-cutscene-spin .ar-cutscene-shape {
           opacity: 1;
-          animation: ar-cs-spin var(--spin-ms) cubic-bezier(0.83, 0, 1, 0.45) forwards;
+          animation: ar-cs-spin var(--spin-ms) cubic-bezier(0.92, 0, 1, 0.55) forwards;
         }
         .ar-cutscene-flash .ar-cutscene-shape {
           animation: none;
@@ -716,13 +716,20 @@ export default function App() {
           animation: ar-cs-flash-bg 0.3s ease forwards;
         }
         @keyframes ar-cs-flash-bg { 0% { background: #000; } 65% { background: #fff; } 100% { background: #fff; opacity: 0; } }
-        .ar-stage.ar-shake { animation: ar-cs-shake 0.3s ease; }
+        .ar-stage.ar-shake { animation: ar-cs-shake 0.6s ease-out; }
         @keyframes ar-cs-shake {
-          0%, 100% { transform: translate(0, 0); }
-          20% { transform: translate(-7px, 3px); }
-          40% { transform: translate(7px, -3px); }
-          60% { transform: translate(-5px, 4px); }
-          80% { transform: translate(5px, -4px); }
+          0% { transform: translate(0, 0); }
+          8% { transform: translate(-9px, 5px); }
+          16% { transform: translate(9px, -5px); }
+          24% { transform: translate(-8px, 6px); }
+          32% { transform: translate(8px, -6px); }
+          42% { transform: translate(-6px, 4px); }
+          52% { transform: translate(6px, -4px); }
+          62% { transform: translate(-4px, 3px); }
+          72% { transform: translate(4px, -3px); }
+          82% { transform: translate(-2px, 1px); }
+          91% { transform: translate(2px, -1px); }
+          100% { transform: translate(0, 0); }
         }
 
         .ar-header { max-width: 460px; margin: 0 auto; padding: 24px 20px 4px; display: flex; align-items: flex-start; justify-content: space-between; }
@@ -1259,3 +1266,4 @@ export default function App() {
     </div>
   );
 }
+
