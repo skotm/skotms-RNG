@@ -151,6 +151,10 @@ const defaultData = () => ({
   totalAetherEarned: 0,
   totalAetherSpent: 0,
   stats: { luck: 0, speed: 0, mutationBoost: 0, aetherBoost: 0, luckyCharge: 0 },
+  itemInventory: {},      // { [itemId]: count }
+  activeBoosts: [],       // [{ itemId, category, mult, remainingRolls, priority? }]
+  shopSoldCounts: {},     // { [itemId]: soldThisRotation }
+  shopRotationKey: null,  // number — which rotation we're on
   version: 1,
 });
 
@@ -226,15 +230,15 @@ function calcAuraAether(aura, prevCount) {
 
 const LUCK_LEVELS = [
   { mult: 1.00, cost: 0 },
-  { mult: 1.15, cost: 200 },
-  { mult: 1.30, cost: 500 },
-  { mult: 1.50, cost: 1200 },
-  { mult: 1.75, cost: 3000 },
-  { mult: 2.00, cost: 7000 },
-  { mult: 2.50, cost: 18000 },
-  { mult: 3.00, cost: 45000 },
-  { mult: 4.00, cost: 120000 },
-  { mult: 5.00, cost: 300000 },
+  { mult: 1.15, cost: 100 },
+  { mult: 1.30, cost: 280 },
+  { mult: 1.50, cost: 700 },
+  { mult: 1.75, cost: 1800 },
+  { mult: 2.00, cost: 4500 },
+  { mult: 2.50, cost: 12000 },
+  { mult: 3.00, cost: 30000 },
+  { mult: 4.00, cost: 80000 },
+  { mult: 5.00, cost: 200000 },
 ];
 
 const SPEED_LEVELS = [
@@ -242,45 +246,155 @@ const SPEED_LEVELS = [
   { ms: 1800, cost: 80 },
   { ms: 1600, cost: 200 },
   { ms: 1400, cost: 500 },
-  { ms: 1200, cost: 3500 },
-  { ms: 1050, cost: 8000 },
-  { ms: 900,  cost: 20000 },
-  { ms: 800,  cost: 50000 },
-  { ms: 700,  cost: 120000 },
+  { ms: 1200, cost: 2000 },
+  { ms: 1050, cost: 5000 },
+  { ms: 900,  cost: 13000 },
+  { ms: 800,  cost: 35000 },
+  { ms: 700,  cost: 80000 },
 ];
 
 const MUTATION_LEVELS = [
   { mult: 1.0,  cost: 0 },
-  { mult: 1.3,  cost: 400 },
-  { mult: 1.7,  cost: 1000 },
-  { mult: 2.5,  cost: 3000 },
-  { mult: 3.5,  cost: 9000 },
-  { mult: 5.0,  cost: 25000 },
-  { mult: 7.0,  cost: 70000 },
-  { mult: 10.0, cost: 200000 },
+  { mult: 1.3,  cost: 200 },
+  { mult: 1.7,  cost: 600 },
+  { mult: 2.5,  cost: 2000 },
+  { mult: 3.5,  cost: 6000 },
+  { mult: 5.0,  cost: 18000 },
+  { mult: 7.0,  cost: 50000 },
+  { mult: 10.0, cost: 140000 },
 ];
 
 const AETHER_BOOST_LEVELS = [
   { mult: 1.0, cost: 0 },
-  { mult: 1.2, cost: 250 },
-  { mult: 1.4, cost: 600 },
-  { mult: 1.7, cost: 1500 },
-  { mult: 2.0, cost: 4000 },
-  { mult: 2.5, cost: 10000 },
-  { mult: 3.0, cost: 28000 },
-  { mult: 4.0, cost: 75000 },
-  { mult: 5.0, cost: 200000 },
+  { mult: 1.2, cost: 120 },
+  { mult: 1.4, cost: 350 },
+  { mult: 1.7, cost: 900 },
+  { mult: 2.0, cost: 2500 },
+  { mult: 2.5, cost: 7000 },
+  { mult: 3.0, cost: 18000 },
+  { mult: 4.0, cost: 50000 },
+  { mult: 5.0, cost: 130000 },
 ];
 
 const LUCKY_CHARGE_LEVELS = [
   { every: 10, cost: 0 },
   { every: 9,  cost: 150 },
   { every: 8,  cost: 400 },
-  { every: 7,  cost: 3000 },
-  { every: 6,  cost: 8000 },
-  { every: 5,  cost: 20000 },
-  { every: 4,  cost: 55000 },
+  { every: 7,  cost: 2000 },
+  { every: 6,  cost: 5500 },
+  { every: 5,  cost: 14000 },
+  { every: 4,  cost: 38000 },
 ];
+
+
+/* ---------------------------------------------------------------------- */
+/* Items                                                                    */
+/* ---------------------------------------------------------------------- */
+
+const ITEMS = [
+  // ── Luck ──
+  {
+    id: "lucky_die_1", name: "Lucky Dice I", category: "luck",
+    desc: "All odds ×2 for 10 rolls",
+    price: 60,        mult: 2,           rolls: 10, stackable: true, weight: 29,
+  },
+  {
+    id: "lucky_die_2", name: "Lucky Dice II", category: "luck",
+    desc: "All odds ×5 for 10 rolls",
+    price: 220,       mult: 5,           rolls: 10, stackable: true, weight: 23,
+  },
+  {
+    id: "lucky_die_3", name: "Lucky Dice III", category: "luck",
+    desc: "All odds ×100 for 1 roll",
+    price: 2000,      mult: 100,         rolls: 1,  stackable: true, weight: 19,
+  },
+  {
+    id: "mega_lucky_die", name: "Mega Lucky Dice", category: "luck",
+    desc: "All odds ×10,000 for 1 roll",
+    price: 15000,     mult: 10000,       rolls: 1,  stackable: true, weight: 12,
+  },
+  {
+    id: "hyper_lucky_die", name: "Hyper Lucky Dice", category: "luck",
+    desc: "All odds ×1,000,000 for 1 roll",
+    price: 150000,    mult: 1000000,     rolls: 1,  stackable: true, weight: 2,
+  },
+  {
+    id: "ultra_lucky_die", name: "Ultra Lucky Dice", category: "luck",
+    desc: "All odds ×100,000,000 for 1 roll",
+    price: 1500000,   mult: 100000000,   rolls: 1,  stackable: true, weight: 2,
+  },
+  // ── Speed ──
+  {
+    id: "turbo_shard", name: "Turbo Shard", category: "speed",
+    desc: "Fast Roll speed ×1.5 for 30 rolls",
+    price: 350,       mult: 1.5,         rolls: 30, stackable: false, priority: 1, weight: 21,
+  },
+  {
+    id: "blitz_crystal", name: "Blitz Crystal", category: "speed",
+    desc: "Fast Roll speed ×3 for 20 rolls",
+    price: 1800,      mult: 3,           rolls: 20, stackable: false, priority: 2, weight: 14,
+  },
+  // ── Aether ──
+  {
+    id: "aether_vial", name: "Aether Vial", category: "aether",
+    desc: "Aether gain ×2 for 20 rolls",
+    price: 120,       mult: 2,           rolls: 20, stackable: true, weight: 25,
+  },
+  {
+    id: "aether_flask", name: "Aether Flask", category: "aether",
+    desc: "Aether gain ×5 for 20 rolls",
+    price: 900,       mult: 5,           rolls: 20, stackable: true, weight: 17,
+  },
+  // ── Mutation ──
+  {
+    id: "prism_shard", name: "Prism Shard", category: "mutation",
+    desc: "Mutation odds ×3 for 10 rolls",
+    price: 280,       mult: 3,           rolls: 10, stackable: true, weight: 21,
+  },
+  {
+    id: "prism_core", name: "Prism Core", category: "mutation",
+    desc: "Mutation odds ×10 for 5 rolls",
+    price: 5000,      mult: 10,          rolls: 5,  stackable: true, weight: 12,
+  },
+];
+
+const SHOP_ROTATION_MS = 10 * 60 * 1000; // 10分
+const SHOP_SLOT_COUNT  = 6;               // 同時表示アイテム数
+const SHOP_STOCK_PER   = 2;               // 各スロット在庫数
+
+// LCGベースのシード乱数（再現可能）
+function seededRand(seed) {
+  let s = seed;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) | 0;
+    return (s >>> 0) / 0x100000000;
+  };
+}
+
+function getRotationKey() {
+  return Math.floor(Date.now() / SHOP_ROTATION_MS);
+}
+
+// 重み付き非重複選択（同じrotationKeyで同じラインナップを再現）
+function getShopSlots(rotationKey, soldCounts) {
+  const rand = seededRand(rotationKey);
+  const remaining = [...ITEMS];
+  const selected = [];
+  while (selected.length < SHOP_SLOT_COUNT && remaining.length > 0) {
+    const totalWeight = remaining.reduce((s, it) => s + (it.weight ?? 50), 0);
+    let r = rand() * totalWeight;
+    let idx = 0;
+    for (let i = 0; i < remaining.length; i++) {
+      r -= remaining[i].weight ?? 50;
+      if (r <= 0) { idx = i; break; }
+    }
+    selected.push(remaining.splice(idx, 1)[0]);
+  }
+  return selected.map((item) => ({
+    item,
+    stock: Math.max(0, SHOP_STOCK_PER - (soldCounts[item.id] ?? 0)),
+  }));
+}
 
 // fmtNext: 次Lvの効果テキスト / fmtMax: MAX時テキスト
 const SHOP_STATS = [
@@ -587,6 +701,107 @@ function ShopIcon({ id, size = 28 }) {
   return icons[id] ?? null;
 }
 
+
+/* アイテム用SVGアイコン */
+function ItemIcon({ id, size = 26 }) {
+  const s = size;
+  const icons = {
+    lucky_die_1: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+      </svg>
+    ),
+    lucky_die_2: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/>
+        <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/>
+      </svg>
+    ),
+    lucky_die_3: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="8" cy="8" r="1.2" fill="currentColor"/>
+        <circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+        <circle cx="16" cy="16" r="1.2" fill="currentColor"/>
+      </svg>
+    ),
+    mega_lucky_die: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="8" cy="8" r="1.2" fill="currentColor"/>
+        <circle cx="16" cy="8" r="1.2" fill="currentColor"/>
+        <circle cx="8" cy="16" r="1.2" fill="currentColor"/>
+        <circle cx="16" cy="16" r="1.2" fill="currentColor"/>
+        <circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+      </svg>
+    ),
+    hyper_lucky_die: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="8" cy="8" r="1.2" fill="currentColor"/>
+        <circle cx="16" cy="8" r="1.2" fill="currentColor"/>
+        <circle cx="8" cy="16" r="1.2" fill="currentColor"/>
+        <circle cx="16" cy="16" r="1.2" fill="currentColor"/>
+        <circle cx="8" cy="12" r="1.2" fill="currentColor"/>
+        <circle cx="16" cy="12" r="1.2" fill="currentColor"/>
+      </svg>
+    ),
+    ultra_lucky_die: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="4"/>
+        <rect x="3.5" y="3.5" width="17" height="17" rx="3" strokeWidth="0.8" strokeDasharray="2 1.5"/>
+        <circle cx="8" cy="8" r="1.2" fill="currentColor"/>
+        <circle cx="16" cy="8" r="1.2" fill="currentColor"/>
+        <circle cx="8" cy="16" r="1.2" fill="currentColor"/>
+        <circle cx="16" cy="16" r="1.2" fill="currentColor"/>
+        <circle cx="8" cy="12" r="1.2" fill="currentColor"/>
+        <circle cx="16" cy="12" r="1.2" fill="currentColor"/>
+      </svg>
+    ),
+    turbo_shard: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+    ),
+    blitz_crystal: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        <line x1="17" y1="2" x2="17" y2="6"/>
+        <line x1="21" y1="4" x2="17" y2="4"/>
+      </svg>
+    ),
+    aether_vial: (
+      <svg width={s} height={s} viewBox="-0.75 -0.75 14.5 17.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z"/>
+      </svg>
+    ),
+    aether_flask: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 3h6M9 3v5l-5 9a2 2 0 0 0 1.8 3h12.4A2 2 0 0 0 20 17l-5-9V3"/>
+        <line x1="6.2" y1="16" x2="17.8" y2="16"/>
+      </svg>
+    ),
+    prism_shard: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 19 21 5 21"/>
+        <line x1="12" y1="2" x2="5" y2="21"/>
+        <line x1="12" y1="2" x2="19" y2="21"/>
+      </svg>
+    ),
+    prism_core: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 19 21 5 21"/>
+        <line x1="12" y1="2" x2="5" y2="21"/>
+        <line x1="12" y1="2" x2="19" y2="21"/>
+        <circle cx="12" cy="13" r="2.5"/>
+      </svg>
+    ),
+  };
+  return icons[id] ?? null;
+}
+
 function PanelHead({ title, onClose }) {
   return (
     <div className="ar-panel-head">
@@ -623,6 +838,10 @@ export default function App() {
   const [currentRollLucky, setCurrentRollLucky] = useState(false);
   const [headerBadgeAuraId, setHeaderBadgeAuraId] = useState(null);
   const [aetherPopup, setAetherPopup] = useState(null); // { amount, isNew, key }
+  const [shopTab, setShopTab] = useState("enhancement"); // "enhancement" | "items"
+  const [invTab, setInvTab] = useState("auras"); // "auras" | "items"
+  const [rotationKey, setRotationKey] = useState(() => getRotationKey());
+  const [nextRotationIn, setNextRotationIn] = useState(0);
   const currentRollRef = useRef(null);
 
   // zoom: a single boolean target + the transition duration to reach it.
@@ -755,10 +974,19 @@ export default function App() {
 
       // ── Aether (with boost) ──
       const aetherMult = AETHER_BOOST_LEVELS[stats.aetherBoost ?? 0]?.mult ?? 1;
+      const boosts = prev.activeBoosts ?? [];
+      const boostAetherMult = boosts
+        .filter(b => b.category === "aether" && b.remainingRolls > 0)
+        .reduce((acc, b) => acc * b.mult, 1);
       const rollGain = calcRollAether(newTotalRolls, isLucky);
       const prevCount = prev.inventory[aura.id] || 0;
       const auraGain = calcAuraAether(aura, prevCount);
-      const totalGain = Math.ceil((rollGain + auraGain) * aetherMult);
+      const totalGain = Math.ceil((rollGain + auraGain) * aetherMult * boostAetherMult);
+
+      // ── ブースト残りロール数をデクリメント ──
+      const newBoosts = boosts
+        .map(b => ({ ...b, remainingRolls: b.remainingRolls - 1 }))
+        .filter(b => b.remainingRolls > 0);
 
       // stash for popup (read in revealNow)
       aetherPopRef.current = { amount: totalGain, isNew: prevCount === 0 };
@@ -771,6 +999,7 @@ export default function App() {
         luckyCounter: newLuckyCounter,
         aether: (prev.aether ?? 0) + totalGain,
         totalAetherEarned: (prev.totalAetherEarned ?? 0) + totalGain,
+        activeBoosts: newBoosts,
       };
     });
   }, []);
@@ -852,7 +1081,7 @@ export default function App() {
       const runCutscene = (ctype) => {
         const dur = CUTSCENE_DURATIONS[ctype];
         const color = colorOf(aura);
-        setCutscene({ type: ctype, color, stage: "black", key: Math.random() }); // silent — no click here
+        setCutscene({ type: ctype, color, tier: aura.tier, stage: "black", key: Math.random() }); // silent — no click here
         cutsceneTimeoutRef.current = setTimeout(() => {
           setCutscene((c) => c && { ...c, stage: "spin" });
           cutsceneTimeoutRef.current = setTimeout(() => {
@@ -922,15 +1151,34 @@ export default function App() {
       const isLucky = luckyCounterRef.current >= luckyEvery - 1;
       const luckMult = LUCK_LEVELS[stats.luck ?? 0]?.mult ?? 1;
       const mutBoost = MUTATION_LEVELS[stats.mutationBoost ?? 0]?.mult ?? 1;
+
+      // アクティブブーストからluck・mutationを乗算適用
+      const boosts = d.activeBoosts ?? [];
+      const boostLuckMult = boosts
+        .filter(b => b.category === "luck" && b.remainingRolls > 0)
+        .reduce((acc, b) => acc * b.mult, 1);
+      const boostMutMult = boosts
+        .filter(b => b.category === "mutation" && b.remainingRolls > 0)
+        .reduce((acc, b) => acc * b.mult, 1);
+      // speed: 重複不可・priorityが高いものを優先
+      const speedBoost = boosts
+        .filter(b => b.category === "speed" && b.remainingRolls > 0)
+        .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0];
+
       const aura = rollAura(
-        (isLucky ? LUCKY_MULTIPLIER : 1) * luckMult,
+        (isLucky ? LUCKY_MULTIPLIER : 1) * luckMult * boostLuckMult,
         d.inventory,
-        mutBoost
+        mutBoost * boostMutMult
       );
       currentRollRef.current = { aura, isLucky };
       setCurrentRollLucky(isLucky);
       if (!autoFastRef.current) setView("roll");
-      runRollAnimation(aura, totalMs);
+
+      // speedブーストがあれば時間を短縮
+      const effectiveMs = speedBoost
+        ? Math.max(400, Math.round(totalMs / speedBoost.mult))
+        : totalMs;
+      runRollAnimation(aura, effectiveMs);
     },
     [runRollAnimation]
   );
@@ -1007,6 +1255,26 @@ export default function App() {
     const t = setTimeout(() => setAetherPopup(null), 1800);
     return () => clearTimeout(t);
   }, [aetherPopup]);
+
+  // ショップローテーションタイマー
+  useEffect(() => {
+    const tick = () => {
+      const key = getRotationKey();
+      const msUntilNext = SHOP_ROTATION_MS - (Date.now() % SHOP_ROTATION_MS);
+      setNextRotationIn(msUntilNext);
+      setRotationKey((prev) => {
+        if (prev !== key) {
+          // ローテーション更新 — 売り切れカウントをリセット
+          setData((d) => ({ ...d, shopSoldCounts: {}, shopRotationKey: key }));
+          return key;
+        }
+        return prev;
+      });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const bestAura = data.bestAuraId ? AURAS.find((a) => a.id === data.bestAuraId) : null;
   const badgeAura = headerBadgeAuraId ? AURAS.find((a) => a.id === headerBadgeAuraId) : null;
@@ -1094,13 +1362,13 @@ export default function App() {
           pointer-events: none;
           z-index: 45;
           opacity: 0;
-          background: radial-gradient(circle at 50% 38%, rgba(255,255,255,0) 20%, rgba(0,0,0,0.93) 74%);
+          background: var(--cs-vignette, radial-gradient(circle at 50% 38%, rgba(255,255,255,0) 20%, rgba(0,0,0,0.93) 74%));
         }
 
         .ar-cutscene {
           position: fixed; inset: 0;
           z-index: 70;
-          background: #000;
+          background: var(--cs-bg, #000);
           display: flex; align-items: center; justify-content: center;
           pointer-events: none;
         }
@@ -1123,7 +1391,10 @@ export default function App() {
         .ar-cutscene-flash {
           animation: ar-cs-flash-bg 0.3s ease forwards;
         }
-        @keyframes ar-cs-flash-bg { 0% { background: #000; } 65% { background: #fff; } 100% { background: #fff; opacity: 0; } }
+@keyframes ar-cs-flash-bg { 0% { background: #000; } 65% { background: #fff; } 100% { background: #fff; opacity: 0; } }
+        @keyframes ar-cs-flash-bg-white { 0% { background: #fff; } 65% { background: #fff; } 100% { background: #fff; opacity: 0; } }
+        .ar-cutscene.ar-cutscene-light { --cs-bg: #fff; --cs-vignette: radial-gradient(circle at 50% 38%, rgba(0,0,0,0) 20%, rgba(200,200,220,0.5) 74%); }
+        .ar-cutscene.ar-cutscene-light.ar-cutscene-flash { animation: ar-cs-flash-bg-white 0.3s ease forwards; }
         .ar-stage.ar-shake { animation: ar-cs-shake 0.6s ease-out; }
         @keyframes ar-cs-shake {
           0% { transform: translate(0, 0); }
@@ -1140,7 +1411,7 @@ export default function App() {
           100% { transform: translate(0, 0); }
         }
 
-        .ar-header { max-width: 460px; margin: 0 auto; padding: 24px 20px 4px; display: flex; align-items: flex-start; justify-content: space-between; }
+        .ar-header { max-width: 460px; margin: 0 auto; padding: 24px 20px 0; display: flex; align-items: flex-start; justify-content: space-between; }
         .ar-header-left { display: flex; flex-direction: column; gap: 8px; }
         .ar-badge-row { display: flex; align-items: center; gap: 9px; }
         .ar-badge-text { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
@@ -1225,7 +1496,7 @@ export default function App() {
         .ar-icon-btn:active { transform: scale(0.94); }
         .ar-icon-btn:disabled { opacity: 0.35; cursor: default; }
 
-        .ar-main { max-width: 460px; margin: 0 auto; padding: 18px 20px 0; display: flex; flex-direction: column; align-items: center; }
+        .ar-main { max-width: 460px; margin: 0 auto; padding: 6px 20px 0; display: flex; flex-direction: column; align-items: center; }
 
         .ar-panel {
           width: 100%;
@@ -1271,7 +1542,12 @@ export default function App() {
           position: relative;
           overflow: hidden;
           flex: 2;
-          padding: 18px 0 20px;
+          padding: 0;
+          min-height: 62px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
           background: var(--ink);
           color: #fff;
           border: none;
@@ -1435,9 +1711,76 @@ export default function App() {
 
         /* ── Header right column (nav + aether badge) ── */
         .ar-header-right {
-          display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+          display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
         }
 
+
+
+        /* ── Shop tabs ── */
+        .ar-shop-tabs {
+          display: flex; border-bottom: 1px solid var(--line);
+          flex-shrink: 0;
+        }
+        .ar-shop-tab {
+          flex: 1; padding: 10px 0; font-size: 13px; font-weight: 600;
+          background: none; border: none; cursor: pointer;
+          color: var(--ink-soft); border-bottom: 2px solid transparent;
+          margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
+        }
+        .ar-shop-tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+
+        /* ── Shop balance inline in header ── */
+        .ar-shop-balance-inline {
+          display: flex; align-items: center; gap: 4px;
+          font-size: 13px; font-weight: 700;
+          font-feature-settings: "tnum" 1;
+          margin-left: auto; margin-right: 10px;
+          color: var(--ink);
+        }
+
+        /* ── Shop rotation timer ── */
+        .ar-shop-rotation-timer {
+          font-size: 11px; color: var(--ink-soft); text-align: center;
+          padding: 8px 0 4px; font-feature-settings: "tnum" 1;
+        }
+
+        /* ── Shop sold-out card ── */
+        .ar-shop-card.sold-out { opacity: 0.45; }
+        .ar-shop-item-stock {
+          font-size: 11px; color: var(--ink-soft); margin-top: 2px;
+        }
+
+        /* ── Inventory items tab ── */
+        .ar-inv-item-row {
+          display: flex; align-items: center; gap: 8px;
+          padding: 10px 8px; border-bottom: 1px solid var(--line);
+        }
+        .ar-inv-item-row:last-child { border-bottom: none; }
+        .ar-inv-item-body { flex: 1; min-width: 0; }
+        .ar-inv-item-count {
+          font-size: 15px; font-weight: 700; min-width: 28px;
+          text-align: right; font-feature-settings: "tnum" 1;
+        }
+        .ar-inv-item-active {
+          font-size: 10px; color: #34C759; font-weight: 600; margin-top: 2px;
+        }
+
+        /* ── Active boosts (under aether badge) ── */
+        .ar-active-boosts {
+          display: flex; flex-direction: row; gap: 4px;
+          flex-wrap: wrap; justify-content: flex-end;
+          margin-top: 0;
+        }
+        .ar-active-boost-chip {
+          display: flex; align-items: center; gap: 3px;
+          background: var(--ink); color: #fff;
+          font-size: 10px; font-weight: 700;
+          padding: 3px 7px 3px 5px; border-radius: 20px;
+        }
+        .ar-boost-rolls {
+          font-feature-settings: "tnum" 1;
+          font-size: 10px;
+        }
 
         /* ── Shop ── */
         .ar-shop-balance {
@@ -1449,16 +1792,22 @@ export default function App() {
           margin-bottom: 2px;
         }
         .ar-shop-card {
-          display: flex; align-items: center; gap: 12px;
-          padding: 14px 12px 14px 14px;
+          display: flex; align-items: center; gap: 8px;
+          padding: 12px 8px;
           border-bottom: 1px solid var(--line);
           background: #fff;
         }
+        .ar-shop-card-enh {
+          flex-direction: column; align-items: stretch; gap: 0;
+        }
+        .ar-shop-card-row {
+          display: flex; align-items: center; gap: 8px;
+        }
         .ar-shop-card:last-child { border-bottom: none; }
         .ar-shop-card-icon {
-          width: 44px; height: 44px;
+          width: 40px; height: 40px; margin-top: 1px;
           display: flex; align-items: center; justify-content: center;
-          background: var(--fill); border-radius: 12px;
+          background: var(--fill); border-radius: 10px;
           flex-shrink: 0;
           color: var(--ink);
         }
@@ -1469,10 +1818,11 @@ export default function App() {
         }
         .ar-shop-card-desc {
           font-size: 11px; color: var(--ink-soft);
-          margin-bottom: 7px; line-height: 1.3;
+          margin-bottom: 0; line-height: 1.3;
+          white-space: normal; word-break: break-word;
         }
         .ar-shop-bar-wrap {
-          display: flex; gap: 3px; height: 5px;
+          display: flex; gap: 3px; height: 5px; margin-top: 8px; width: 100%;
         }
         .ar-shop-bar-seg {
           flex: 1; border-radius: 3px;
@@ -1482,13 +1832,14 @@ export default function App() {
         .ar-shop-bar-seg.filled { background: var(--ink); }
         .ar-shop-card-cost {
           display: flex; align-items: center; gap: 3px;
-          font-size: 13px; font-weight: 700;
+          font-size: 12px; font-weight: 700;
           font-feature-settings: "tnum" 1;
-          min-width: 56px; justify-content: flex-end;
+          white-space: nowrap;
+          justify-content: flex-end;
           flex-shrink: 0;
         }
         .ar-shop-up-btn {
-          width: 40px; height: 40px; border-radius: 10px;
+          width: 38px; height: 38px; border-radius: 10px;
           border: none; cursor: pointer; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
           background: var(--ink); color: #fff;
@@ -1501,7 +1852,6 @@ export default function App() {
           background: var(--fill); color: var(--ink-soft); cursor: default;
         }
         .ar-shop-max-label { font-size: 10px; font-weight: 800; letter-spacing: 0.05em; }
-        .ar-shop-card-desc { white-space: nowrap; }
 
         /* ── Aether badge (below settings button) ── */
         .ar-aether-badge {
@@ -1565,7 +1915,7 @@ export default function App() {
       />
 
       {cutscene && (
-        <div className={`ar-cutscene ar-cutscene-${cutscene.stage}`} key={cutscene.key}>
+        <div className={`ar-cutscene ar-cutscene-${cutscene.stage}${cutscene.tier === 8 ? " ar-cutscene-light" : ""}`} key={cutscene.key}>
           <div
             className="ar-cutscene-shape"
             style={{ "--cs-color": cutscene.color, "--spin-ms": `${CUTSCENE_DURATIONS[cutscene.type].spin}ms` }}
@@ -1615,6 +1965,16 @@ export default function App() {
               <DropletIcon size={14} style={{ color: "var(--ink)" }} />
               <span className="ar-aether-amount">{(data.aether ?? 0).toLocaleString()}</span>
             </div>
+            {(data.activeBoosts ?? []).length > 0 && (
+              <div className="ar-active-boosts">
+                {(data.activeBoosts ?? []).map((b) => (
+                  <div className="ar-active-boost-chip" key={b.itemId}>
+                    <ItemIcon id={b.itemId} size={11} />
+                    <span className="ar-boost-rolls">{b.remainingRolls}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </header>
 
@@ -1676,8 +2036,78 @@ export default function App() {
 
             {view === "collection" && (
               <>
-                <PanelHead title="Collection" onClose={() => setView("roll")} />
-                <div className="ar-panel-scroll">
+                <PanelHead title="Inventory" onClose={() => setView("roll")} />
+                <div className="ar-shop-tabs">
+                  <button className={`ar-shop-tab ${invTab === "auras" ? "active" : ""}`} onClick={() => setInvTab("auras")}>Auras</button>
+                  <button className={`ar-shop-tab ${invTab === "items" ? "active" : ""}`} onClick={() => setInvTab("items")}>Items</button>
+                </div>
+                {invTab === "items" && (
+                  <div className="ar-panel-scroll">
+                    {ITEMS.filter((item) => ((data.itemInventory ?? {})[item.id] ?? 0) > 0).map((item) => {
+                      const count = (data.itemInventory ?? {})[item.id] ?? 0;
+                      const activeBoost = (data.activeBoosts ?? []).find(b => b.itemId === item.id);
+                      const handleUse = () => {
+                        if (count <= 0) return;
+                        setData((prev) => {
+                          const prevCount = (prev.itemInventory ?? {})[item.id] ?? 0;
+                          if (prevCount <= 0) return prev;
+                          const prevBoosts = prev.activeBoosts ?? [];
+                          let newBoosts;
+                          if (item.category === "speed") {
+                            const existing = prevBoosts.find(b => b.category === "speed");
+                            if (existing && (existing.priority ?? 0) >= (item.priority ?? 0)) return prev;
+                            newBoosts = [
+                              ...prevBoosts.filter(b => b.category !== "speed"),
+                              { itemId: item.id, category: item.category, mult: item.mult, remainingRolls: item.rolls, priority: item.priority ?? 0 },
+                            ];
+                          } else {
+                            const existingIdx = prevBoosts.findIndex(b => b.itemId === item.id);
+                            if (existingIdx >= 0) {
+                              newBoosts = prevBoosts.map((b, i) =>
+                                i === existingIdx ? { ...b, remainingRolls: b.remainingRolls + item.rolls } : b
+                              );
+                            } else {
+                              newBoosts = [...prevBoosts, { itemId: item.id, category: item.category, mult: item.mult, remainingRolls: item.rolls, priority: item.priority ?? 0 }];
+                            }
+                          }
+                          return {
+                            ...prev,
+                            itemInventory: { ...(prev.itemInventory ?? {}), [item.id]: prevCount - 1 },
+                            activeBoosts: newBoosts,
+                          };
+                        });
+                      };
+                      return (
+                        <div className="ar-inv-item-row" key={item.id}>
+                          <div className="ar-shop-card-icon" style={{ width: 40, height: 40, borderRadius: 10 }}>
+                            <ItemIcon id={item.id} size={22} />
+                          </div>
+                          <div className="ar-inv-item-body">
+                            <div className="ar-shop-card-title" style={{ fontSize: 13 }}>{item.name}</div>
+                            <div className="ar-shop-card-desc">{item.desc}</div>
+                            {activeBoost && (
+                              <div className="ar-inv-item-active">Active · {activeBoost.remainingRolls} rolls left</div>
+                            )}
+                          </div>
+                          <div className="ar-inv-item-count">×{count}</div>
+                          <button
+                            className={`ar-shop-up-btn ${count <= 0 ? "disabled" : ""}`}
+                            onClick={handleUse} disabled={count <= 0}
+                            style={{ width: 36, height: 36, fontSize: 12, fontWeight: 700 }}
+                          >
+                            Use
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {ITEMS.every(item => ((data.itemInventory ?? {})[item.id] ?? 0) === 0) && (
+                      <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--ink-soft)", fontSize: 14 }}>
+                        No items yet. Visit the Shop!
+                      </div>
+                    )}
+                  </div>
+                )}
+                {invTab === "auras" && <div className="ar-panel-scroll">
                   <div className="ar-section-label">{collectedCount} of {AURAS.length} found</div>
                   {TIERS.map((tierInfo, tierIdx) => {
                     const baseAuras = AURAS.filter((a) => a.tier === tierIdx && !a.mutationOf);
@@ -1717,7 +2147,7 @@ export default function App() {
                       </div>
                     );
                   })}
-                </div>
+                </div>}
               </>
             )}
 
@@ -1757,77 +2187,139 @@ export default function App() {
               </>
             )}
 
-            {view === "shop" && (
-              <>
-                <PanelHead title="Enhancement" onClose={() => setView("roll")} />
-                <div className="ar-shop-balance">
-                  <DropletIcon size={13} />
-                  <span>{(data.aether ?? 0).toLocaleString()}</span>
-                </div>
-                <div className="ar-panel-scroll">
-                  {SHOP_STATS.map((stat) => {
-                    const stats = data.stats ?? {};
-                    const lv = stats[stat.id] ?? 0;
-                    const maxLv = stat.levels.length - 1;
-                    const isMax = lv >= maxLv;
-                    const nextCost = isMax ? 0 : stat.levels[lv + 1].cost;
-                    const canAfford = (data.aether ?? 0) >= nextCost;
+            {view === "shop" && (() => {
+              const slots = getShopSlots(rotationKey, data.shopSoldCounts ?? {});
+              const mins = Math.floor(nextRotationIn / 60000);
+              const secs = Math.floor((nextRotationIn % 60000) / 1000);
+              return (
+                <>
+                  <div className="ar-panel-head">
+                    <span className="ar-panel-title">Shop</span>
+                    <div className="ar-shop-balance-inline">
+                      <DropletIcon size={12} />
+                      <span>{(data.aether ?? 0).toLocaleString()}</span>
+                    </div>
+                    <button className="ar-panel-close" onClick={() => setView("roll")} aria-label="Back to roll">
+                      <X size={16} />
+                    </button>
+                  </div>
+                  {/* タブ */}
+                  <div className="ar-shop-tabs">
+                    <button className={`ar-shop-tab ${shopTab === "enhancement" ? "active" : ""}`} onClick={() => setShopTab("enhancement")}>Enhancement</button>
+                    <button className={`ar-shop-tab ${shopTab === "items" ? "active" : ""}`} onClick={() => setShopTab("items")}>Items</button>
+                  </div>
 
-                    const handleBuy = () => {
-                      if (isMax || !canAfford) return;
-                      setData((prev) => {
-                        const prevStats = prev.stats ?? {};
-                        const prevLv = prevStats[stat.id] ?? 0;
-                        if (prevLv >= stat.levels.length - 1) return prev;
-                        const cost = stat.levels[prevLv + 1].cost;
-                        if ((prev.aether ?? 0) < cost) return prev;
-                        return {
-                          ...prev,
-                          aether: (prev.aether ?? 0) - cost,
-                          totalAetherSpent: (prev.totalAetherSpent ?? 0) + cost,
-                          stats: { ...prevStats, [stat.id]: prevLv + 1 },
+                  {shopTab === "enhancement" && (
+                    <div className="ar-panel-scroll">
+                      {SHOP_STATS.map((stat) => {
+                        const stats = data.stats ?? {};
+                        const lv = stats[stat.id] ?? 0;
+                        const maxLv = stat.levels.length - 1;
+                        const isMax = lv >= maxLv;
+                        const nextCost = isMax ? 0 : stat.levels[lv + 1].cost;
+                        const canAfford = (data.aether ?? 0) >= nextCost;
+                        const handleBuy = () => {
+                          if (isMax || !canAfford) return;
+                          setData((prev) => {
+                            const prevStats = prev.stats ?? {};
+                            const prevLv = prevStats[stat.id] ?? 0;
+                            if (prevLv >= stat.levels.length - 1) return prev;
+                            const cost = stat.levels[prevLv + 1].cost;
+                            if ((prev.aether ?? 0) < cost) return prev;
+                            return {
+                              ...prev,
+                              aether: (prev.aether ?? 0) - cost,
+                              totalAetherSpent: (prev.totalAetherSpent ?? 0) + cost,
+                              stats: { ...prevStats, [stat.id]: prevLv + 1 },
+                            };
+                          });
                         };
-                      });
-                    };
+                        return (
+                          <div className="ar-shop-card ar-shop-card-enh" key={stat.id}>
+                            <div className="ar-shop-card-row">
+                              <div className="ar-shop-card-icon"><ShopIcon id={stat.iconId} size={26} /></div>
+                              <div className="ar-shop-card-body">
+                                <div className="ar-shop-card-title">{stat.name}</div>
+                                <div className="ar-shop-card-desc">{isMax ? stat.fmtMax(lv) : stat.fmtNext(lv)}</div>
+                              </div>
+                              <div className="ar-shop-card-cost">
+                                {!isMax && <><DropletIcon size={11} /><span>{nextCost.toLocaleString()}</span></>}
+                              </div>
+                              <button
+                                className={`ar-shop-up-btn ${isMax ? "max" : ""} ${!isMax && !canAfford ? "disabled" : ""}`}
+                                onClick={handleBuy} disabled={isMax || !canAfford}
+                                aria-label={isMax ? "MAX" : `Upgrade ${stat.name}`}
+                              >
+                                {isMax ? <span className="ar-shop-max-label">MAX</span> : <TrendingUp size={18} />}
+                              </button>
+                            </div>
+                            <div className="ar-shop-bar-wrap">
+                              {Array.from({ length: maxLv }).map((_, i) => (
+                                <div key={i} className={`ar-shop-bar-seg ${i < lv ? "filled" : ""}`} />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                    return (
-                      <div className="ar-shop-card" key={stat.id}>
-                        <div className="ar-shop-card-icon">
-                          <ShopIcon id={stat.iconId} size={26} />
-                        </div>
-                        <div className="ar-shop-card-body">
-                          <div className="ar-shop-card-title">{stat.name}</div>
-                          <div className="ar-shop-card-desc">
-                            {isMax ? stat.fmtMax(lv) : stat.fmtNext(lv)}
-                          </div>
-                          <div className="ar-shop-bar-wrap">
-                            {Array.from({ length: maxLv }).map((_, i) => (
-                              <div key={i} className={`ar-shop-bar-seg ${i < lv ? "filled" : ""}`} />
-                            ))}
-                          </div>
-                        </div>
-                        <div className="ar-shop-card-cost">
-                          {!isMax && (
-                            <>
-                              <DropletIcon size={11} />
-                              <span>{nextCost.toLocaleString()}</span>
-                            </>
-                          )}
-                        </div>
-                        <button
-                          className={`ar-shop-up-btn ${isMax ? "max" : ""} ${!isMax && !canAfford ? "disabled" : ""}`}
-                          onClick={handleBuy}
-                          disabled={isMax || !canAfford}
-                          aria-label={isMax ? "MAX" : `Upgrade ${stat.name}`}
-                        >
-                          {isMax ? <span className="ar-shop-max-label">MAX</span> : <TrendingUp size={18} />}
-                        </button>
+                  {shopTab === "items" && (
+                    <div className="ar-panel-scroll">
+                      <div className="ar-shop-rotation-timer">
+                        Refreshes in {mins}:{String(secs).padStart(2, "0")}
                       </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+                      {slots.map(({ item, stock }) => {
+                        const canAfford = (data.aether ?? 0) >= item.price;
+                        const soldOut = stock <= 0;
+                        const handleBuy = () => {
+                          if (soldOut || !canAfford) return;
+                          setData((prev) => {
+                            const prevStock = SHOP_STOCK_PER - ((prev.shopSoldCounts ?? {})[item.id] ?? 0);
+                            if (prevStock <= 0 || (prev.aether ?? 0) < item.price) return prev;
+                            return {
+                              ...prev,
+                              aether: (prev.aether ?? 0) - item.price,
+                              totalAetherSpent: (prev.totalAetherSpent ?? 0) + item.price,
+                              itemInventory: {
+                                ...(prev.itemInventory ?? {}),
+                                [item.id]: ((prev.itemInventory ?? {})[item.id] ?? 0) + 1,
+                              },
+                              shopSoldCounts: {
+                                ...(prev.shopSoldCounts ?? {}),
+                                [item.id]: ((prev.shopSoldCounts ?? {})[item.id] ?? 0) + 1,
+                              },
+                            };
+                          });
+                        };
+                        return (
+                          <div className={`ar-shop-card ${soldOut ? "sold-out" : ""}`} key={item.id}>
+                            <div className="ar-shop-card-icon"><ItemIcon id={item.id} size={26} /></div>
+                            <div className="ar-shop-card-body">
+                              <div className="ar-shop-card-title">{item.name}</div>
+                              <div className="ar-shop-card-desc">{item.desc}</div>
+                              <div className="ar-shop-item-stock">
+                                {soldOut ? "Sold out" : `${stock} left`}
+                              </div>
+                            </div>
+                            <div className="ar-shop-card-cost">
+                              {!soldOut && <><DropletIcon size={11} /><span>{item.price.toLocaleString()}</span></>}
+                            </div>
+                            <button
+                              className={`ar-shop-up-btn ${soldOut || !canAfford ? "disabled" : ""}`}
+                              onClick={handleBuy} disabled={soldOut || !canAfford}
+                              aria-label={`Buy ${item.name}`}
+                            >
+                              <ShoppingBag size={16} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {view === "settings" && (
               <>
