@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { LayoutGrid, Trophy, Settings as SettingsIcon, BarChart3, FastForward, Pause, Lock, X, RotateCcw, CheckCircle2, Circle, Eye, Star } from "lucide-react";
+import { LayoutGrid, Trophy, Settings as SettingsIcon, BarChart3, FastForward, Pause, Lock, X, RotateCcw, CheckCircle2, Circle, Eye, Star, ShoppingBag, TrendingUp } from "lucide-react";
 
 /* ---------------------------------------------------------------------- */
 /* Data — rarity accents borrowed from Apple's own system colour palette  */
@@ -113,7 +113,7 @@ const colorOf = (aura) => TIERS[aura.tier].color;
 const hasTier = (d, tierIdx) => AURAS.some((a) => a.tier === tierIdx && d.inventory[a.id]);
 
 const NORMAL_MS = 3500;
-const FAST_MS = 1500;
+const FAST_MS = 2000;
 const FAST_UNLOCK_ROLLS = 10;
 const SNAP_OUT_MS = 180; // the abrupt zoom-out, fixed regardless of roll type
 const FINISH_BUFFER_MS = 220;
@@ -149,6 +149,8 @@ const defaultData = () => ({
   luckyCounter: 0,
   aether: 0,
   totalAetherEarned: 0,
+  totalAetherSpent: 0,
+  stats: { luck: 0, speed: 0, mutationBoost: 0, aetherBoost: 0, luckyCharge: 0 },
   version: 1,
 });
 
@@ -218,16 +220,128 @@ function calcAuraAether(aura, prevCount) {
   return DUPLICATE_BONUS[tier];
 }
 
+/* ---------------------------------------------------------------------- */
+/* Shop — Stats upgrade tables                                             */
+/* ---------------------------------------------------------------------- */
+
+const LUCK_LEVELS = [
+  { mult: 1.00, cost: 0 },
+  { mult: 1.15, cost: 200 },
+  { mult: 1.30, cost: 500 },
+  { mult: 1.50, cost: 1200 },
+  { mult: 1.75, cost: 3000 },
+  { mult: 2.00, cost: 7000 },
+  { mult: 2.50, cost: 18000 },
+  { mult: 3.00, cost: 45000 },
+  { mult: 4.00, cost: 120000 },
+  { mult: 5.00, cost: 300000 },
+];
+
+const SPEED_LEVELS = [
+  { ms: 2000, cost: 0 },
+  { ms: 1800, cost: 80 },
+  { ms: 1600, cost: 200 },
+  { ms: 1400, cost: 500 },
+  { ms: 1200, cost: 3500 },
+  { ms: 1050, cost: 8000 },
+  { ms: 900,  cost: 20000 },
+  { ms: 800,  cost: 50000 },
+  { ms: 700,  cost: 120000 },
+];
+
+const MUTATION_LEVELS = [
+  { mult: 1.0,  cost: 0 },
+  { mult: 1.3,  cost: 400 },
+  { mult: 1.7,  cost: 1000 },
+  { mult: 2.5,  cost: 3000 },
+  { mult: 3.5,  cost: 9000 },
+  { mult: 5.0,  cost: 25000 },
+  { mult: 7.0,  cost: 70000 },
+  { mult: 10.0, cost: 200000 },
+];
+
+const AETHER_BOOST_LEVELS = [
+  { mult: 1.0, cost: 0 },
+  { mult: 1.2, cost: 250 },
+  { mult: 1.4, cost: 600 },
+  { mult: 1.7, cost: 1500 },
+  { mult: 2.0, cost: 4000 },
+  { mult: 2.5, cost: 10000 },
+  { mult: 3.0, cost: 28000 },
+  { mult: 4.0, cost: 75000 },
+  { mult: 5.0, cost: 200000 },
+];
+
+const LUCKY_CHARGE_LEVELS = [
+  { every: 10, cost: 0 },
+  { every: 9,  cost: 150 },
+  { every: 8,  cost: 400 },
+  { every: 7,  cost: 3000 },
+  { every: 6,  cost: 8000 },
+  { every: 5,  cost: 20000 },
+  { every: 4,  cost: 55000 },
+];
+
+// fmtNext: 次Lvの効果テキスト / fmtMax: MAX時テキスト
+const SHOP_STATS = [
+  {
+    id: "luck",
+    name: "Luck",
+    desc: "Increase aura roll odds",
+    iconId: "luck",
+    levels: LUCK_LEVELS,
+    fmtNext: (lv) => `All odds ×${LUCK_LEVELS[lv + 1].mult.toFixed(2)} ↗`,
+    fmtMax:  (lv) => `Max ×${LUCK_LEVELS[lv].mult.toFixed(2)}`,
+  },
+  {
+    id: "speed",
+    name: "Speed",
+    desc: "Increase Fast Roll speed",
+    iconId: "speed",
+    levels: SPEED_LEVELS,
+    fmtNext: (lv) => `Fast Roll +${Math.round((1 - SPEED_LEVELS[lv + 1].ms / 2000) * 100)}% ↗`,
+    fmtMax:  (lv) => `Max +${Math.round((1 - SPEED_LEVELS[lv].ms / 2000) * 100)}%`,
+  },
+  {
+    id: "mutationBoost",
+    name: "Mutation Boost",
+    desc: "Increase mutation aura odds",
+    iconId: "mutation",
+    levels: MUTATION_LEVELS,
+    fmtNext: (lv) => `Mutation odds ×${MUTATION_LEVELS[lv + 1].mult.toFixed(1)} ↗`,
+    fmtMax:  (lv) => `Max ×${MUTATION_LEVELS[lv].mult.toFixed(1)}`,
+  },
+  {
+    id: "aetherBoost",
+    name: "Aether Boost",
+    desc: "Increase Aether earned per roll",
+    iconId: "aether",
+    levels: AETHER_BOOST_LEVELS,
+    fmtNext: (lv) => `Aether gain ×${AETHER_BOOST_LEVELS[lv + 1].mult.toFixed(1)} ↗`,
+    fmtMax:  (lv) => `Max ×${AETHER_BOOST_LEVELS[lv].mult.toFixed(1)}`,
+  },
+  {
+    id: "luckyCharge",
+    name: "Lucky Charge",
+    desc: "Lucky Roll triggers more often",
+    iconId: "lucky",
+    levels: LUCKY_CHARGE_LEVELS,
+    fmtNext: (lv) => `Lucky every ${LUCKY_CHARGE_LEVELS[lv + 1].every} rolls ↗`,
+    fmtMax:  (lv) => `Max every ${LUCKY_CHARGE_LEVELS[lv].every} rolls`,
+  },
+];
+
 const LUCKY_EVERY = 10;
 const LUCKY_MULTIPLIER = 5;
 
-function rollAura(luck = 1, inventory = {}) {
+function rollAura(luck = 1, inventory = {}, mutationBoost = 1) {
   const byRarity = [...AURAS].sort((a, b) => b.chance - a.chance); // rarest first
   for (let pass = 0; pass < 100000; pass++) {
     for (const aura of byRarity) {
       // ベースオーラ未取得の場合、その変異オーラは抽選対象から除外
       if (aura.mutationOf && !inventory[aura.mutationOf]) continue;
-      const denom = Math.floor(aura.chance / luck);
+      const effectiveLuck = aura.mutationOf ? luck * mutationBoost : luck;
+      const denom = Math.floor(aura.chance / effectiveLuck);
       if (denom <= 1) continue; // 確実当選になるオーラは判定対象から外す(Sol's RNG仕様)
       if (Math.floor(Math.random() * denom) === 0) return aura;
     }
@@ -436,6 +550,43 @@ function DropletIcon({ size = 14, style }) {
   );
 }
 
+
+/* ショップ用SVGアイコン群 */
+function ShopIcon({ id, size = 28 }) {
+  const s = size;
+  const icons = {
+    luck: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+    ),
+    speed: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      </svg>
+    ),
+    mutation: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+        <path d="M8 12c0-2.21 1.79-4 4-4s4 1.79 4 4-1.79 4-4 4"/>
+        <path d="M12 8v1M12 15v1M8 12h1M15 12h1"/>
+      </svg>
+    ),
+    aether: (
+      <svg width={s} height={s} viewBox="-0.75 -0.75 14.5 17.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z"/>
+      </svg>
+    ),
+    lucky: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+      </svg>
+    ),
+  };
+  return icons[id] ?? null;
+}
+
 function PanelHead({ title, onClose }) {
   return (
     <div className="ar-panel-head">
@@ -598,13 +749,16 @@ export default function App() {
       const newInventory = { ...prev.inventory, [aura.id]: (prev.inventory[aura.id] || 0) + 1 };
       const bestChance = prev.bestAuraId ? AURAS.find((a) => a.id === prev.bestAuraId).chance : 0;
       const newBest = aura.chance > bestChance ? aura.id : prev.bestAuraId;
+      const stats = prev.stats ?? { luck: 0, speed: 0, mutationBoost: 0, aetherBoost: 0, luckyCharge: 0 };
+      const luckyEvery = LUCKY_CHARGE_LEVELS[stats.luckyCharge ?? 0]?.every ?? LUCKY_EVERY;
       const newLuckyCounter = isLucky ? 0 : (prev.luckyCounter ?? 0) + 1;
 
-      // ── Aether ──
+      // ── Aether (with boost) ──
+      const aetherMult = AETHER_BOOST_LEVELS[stats.aetherBoost ?? 0]?.mult ?? 1;
       const rollGain = calcRollAether(newTotalRolls, isLucky);
       const prevCount = prev.inventory[aura.id] || 0;
       const auraGain = calcAuraAether(aura, prevCount);
-      const totalGain = rollGain + auraGain;
+      const totalGain = Math.ceil((rollGain + auraGain) * aetherMult);
 
       // stash for popup (read in revealNow)
       aetherPopRef.current = { amount: totalGain, isNew: prevCount === 0 };
@@ -762,8 +916,17 @@ export default function App() {
   const executeRoll = useCallback(
     (totalMs) => {
       if (spinningRef.current) return;
-      const isLucky = luckyCounterRef.current >= LUCKY_EVERY - 1;
-      const aura = rollAura(isLucky ? LUCKY_MULTIPLIER : 1, dataRef.current.inventory);
+      const d = dataRef.current;
+      const stats = d.stats ?? { luck: 0, speed: 0, mutationBoost: 0, aetherBoost: 0, luckyCharge: 0 };
+      const luckyEvery = LUCKY_CHARGE_LEVELS[stats.luckyCharge ?? 0]?.every ?? LUCKY_EVERY;
+      const isLucky = luckyCounterRef.current >= luckyEvery - 1;
+      const luckMult = LUCK_LEVELS[stats.luck ?? 0]?.mult ?? 1;
+      const mutBoost = MUTATION_LEVELS[stats.mutationBoost ?? 0]?.mult ?? 1;
+      const aura = rollAura(
+        (isLucky ? LUCKY_MULTIPLIER : 1) * luckMult,
+        d.inventory,
+        mutBoost
+      );
       currentRollRef.current = { aura, isLucky };
       setCurrentRollLucky(isLucky);
       if (!autoFastRef.current) setView("roll");
@@ -774,7 +937,7 @@ export default function App() {
 
   const doRoll = useCallback(() => executeRoll(NORMAL_MS), [executeRoll]);
 
-  /* ---- fast roll auto-loop: once toggled on, keep chaining 2s rolls ---- */
+  /* ---- fast roll auto-loop: once toggled on, keep chaining rolls ---- */
   useEffect(() => {
     if (!autoFast) return;
     if (spinning) return;
@@ -782,11 +945,13 @@ export default function App() {
       setAutoFast(false);
       return;
     }
+    const stats = data.stats ?? {};
+    const fastMs = SPEED_LEVELS[stats.speed ?? 0]?.ms ?? FAST_MS;
     const t = setTimeout(() => {
-      if (autoFastRef.current) executeRoll(FAST_MS);
+      if (autoFastRef.current) executeRoll(fastMs);
     }, 150);
     return () => clearTimeout(t);
-  }, [autoFast, spinning, executeRoll, data.totalRolls]);
+  }, [autoFast, spinning, executeRoll, data.totalRolls, data.stats]);
 
   const toggleAutoFast = useCallback(() => {
     if (data.totalRolls < FAST_UNLOCK_ROLLS) return;
@@ -848,8 +1013,9 @@ export default function App() {
   const revealAura = revealAuraId ? AURAS.find((a) => a.id === revealAuraId) : null;
   const collectedCount = AURAS.filter((a) => data.inventory[a.id]).length;
   const fastUnlocked = data.totalRolls >= FAST_UNLOCK_ROLLS;
-  const luckyChargeRatio = Math.min(data.luckyCounter ?? 0, LUCKY_EVERY - 1) / (LUCKY_EVERY - 1);
-  const luckyArmed = (data.luckyCounter ?? 0) >= LUCKY_EVERY - 1;
+  const luckyEveryEffective = LUCKY_CHARGE_LEVELS[data.stats?.luckyCharge ?? 0]?.every ?? LUCKY_EVERY;
+  const luckyChargeRatio = Math.min(data.luckyCounter ?? 0, luckyEveryEffective - 1) / (luckyEveryEffective - 1);
+  const luckyArmed = (data.luckyCounter ?? 0) >= luckyEveryEffective - 1;
   const showLucky = luckyArmed || currentRollLucky;
   const blockingRoll = spinning && !autoFast;
 
@@ -1272,6 +1438,71 @@ export default function App() {
           display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
         }
 
+
+        /* ── Shop ── */
+        .ar-shop-balance {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 15px; font-weight: 700;
+          padding: 10px 16px 4px;
+          font-feature-settings: "tnum" 1;
+          border-bottom: 1px solid var(--line);
+          margin-bottom: 2px;
+        }
+        .ar-shop-card {
+          display: flex; align-items: center; gap: 12px;
+          padding: 14px 12px 14px 14px;
+          border-bottom: 1px solid var(--line);
+          background: #fff;
+        }
+        .ar-shop-card:last-child { border-bottom: none; }
+        .ar-shop-card-icon {
+          width: 44px; height: 44px;
+          display: flex; align-items: center; justify-content: center;
+          background: var(--fill); border-radius: 12px;
+          flex-shrink: 0;
+          color: var(--ink);
+        }
+        .ar-shop-card-body { flex: 1; min-width: 0; }
+        .ar-shop-card-title {
+          font-size: 14px; font-weight: 700; line-height: 1.2;
+          margin-bottom: 2px;
+        }
+        .ar-shop-card-desc {
+          font-size: 11px; color: var(--ink-soft);
+          margin-bottom: 7px; line-height: 1.3;
+        }
+        .ar-shop-bar-wrap {
+          display: flex; gap: 3px; height: 5px;
+        }
+        .ar-shop-bar-seg {
+          flex: 1; border-radius: 3px;
+          background: var(--line);
+          transition: background 0.2s;
+        }
+        .ar-shop-bar-seg.filled { background: var(--ink); }
+        .ar-shop-card-cost {
+          display: flex; align-items: center; gap: 3px;
+          font-size: 13px; font-weight: 700;
+          font-feature-settings: "tnum" 1;
+          min-width: 56px; justify-content: flex-end;
+          flex-shrink: 0;
+        }
+        .ar-shop-up-btn {
+          width: 40px; height: 40px; border-radius: 10px;
+          border: none; cursor: pointer; flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center;
+          background: var(--ink); color: #fff;
+          transition: background 0.15s, opacity 0.15s;
+        }
+        .ar-shop-up-btn.disabled {
+          background: var(--line); color: var(--ink-soft); cursor: not-allowed;
+        }
+        .ar-shop-up-btn.max {
+          background: var(--fill); color: var(--ink-soft); cursor: default;
+        }
+        .ar-shop-max-label { font-size: 10px; font-weight: 800; letter-spacing: 0.05em; }
+        .ar-shop-card-desc { white-space: nowrap; }
+
         /* ── Aether badge (below settings button) ── */
         .ar-aether-badge {
           display: flex; align-items: center; gap: 5px;
@@ -1370,8 +1601,8 @@ export default function App() {
               <button className={`ar-icon-btn ${view === "stats" ? "active" : ""}`} onClick={() => goToView("stats")} aria-label="Stats" disabled={blockingRoll}>
                 <BarChart3 size={17} />
               </button>
-              <button className={`ar-icon-btn ${view === "collection" ? "active" : ""}`} onClick={() => goToView("collection")} aria-label="Collection" disabled={blockingRoll}>
-                <LayoutGrid size={17} />
+              <button className={`ar-icon-btn ${view === "shop" ? "active" : ""}`} onClick={() => goToView("shop")} aria-label="Shop" disabled={blockingRoll}>
+                <ShoppingBag size={17} />
               </button>
               <button className={`ar-icon-btn ${view === "achievements" ? "active" : ""}`} onClick={() => goToView("achievements")} aria-label="Achievements" disabled={blockingRoll}>
                 <Trophy size={17} />
@@ -1522,6 +1753,78 @@ export default function App() {
                       );
                     })}
                   </div>
+                </div>
+              </>
+            )}
+
+            {view === "shop" && (
+              <>
+                <PanelHead title="Enhancement" onClose={() => setView("roll")} />
+                <div className="ar-shop-balance">
+                  <DropletIcon size={13} />
+                  <span>{(data.aether ?? 0).toLocaleString()}</span>
+                </div>
+                <div className="ar-panel-scroll">
+                  {SHOP_STATS.map((stat) => {
+                    const stats = data.stats ?? {};
+                    const lv = stats[stat.id] ?? 0;
+                    const maxLv = stat.levels.length - 1;
+                    const isMax = lv >= maxLv;
+                    const nextCost = isMax ? 0 : stat.levels[lv + 1].cost;
+                    const canAfford = (data.aether ?? 0) >= nextCost;
+
+                    const handleBuy = () => {
+                      if (isMax || !canAfford) return;
+                      setData((prev) => {
+                        const prevStats = prev.stats ?? {};
+                        const prevLv = prevStats[stat.id] ?? 0;
+                        if (prevLv >= stat.levels.length - 1) return prev;
+                        const cost = stat.levels[prevLv + 1].cost;
+                        if ((prev.aether ?? 0) < cost) return prev;
+                        return {
+                          ...prev,
+                          aether: (prev.aether ?? 0) - cost,
+                          totalAetherSpent: (prev.totalAetherSpent ?? 0) + cost,
+                          stats: { ...prevStats, [stat.id]: prevLv + 1 },
+                        };
+                      });
+                    };
+
+                    return (
+                      <div className="ar-shop-card" key={stat.id}>
+                        <div className="ar-shop-card-icon">
+                          <ShopIcon id={stat.iconId} size={26} />
+                        </div>
+                        <div className="ar-shop-card-body">
+                          <div className="ar-shop-card-title">{stat.name}</div>
+                          <div className="ar-shop-card-desc">
+                            {isMax ? stat.fmtMax(lv) : stat.fmtNext(lv)}
+                          </div>
+                          <div className="ar-shop-bar-wrap">
+                            {Array.from({ length: maxLv }).map((_, i) => (
+                              <div key={i} className={`ar-shop-bar-seg ${i < lv ? "filled" : ""}`} />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="ar-shop-card-cost">
+                          {!isMax && (
+                            <>
+                              <DropletIcon size={11} />
+                              <span>{nextCost.toLocaleString()}</span>
+                            </>
+                          )}
+                        </div>
+                        <button
+                          className={`ar-shop-up-btn ${isMax ? "max" : ""} ${!isMax && !canAfford ? "disabled" : ""}`}
+                          onClick={handleBuy}
+                          disabled={isMax || !canAfford}
+                          aria-label={isMax ? "MAX" : `Upgrade ${stat.name}`}
+                        >
+                          {isMax ? <span className="ar-shop-max-label">MAX</span> : <TrendingUp size={18} />}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </>
             )}
