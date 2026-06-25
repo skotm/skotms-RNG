@@ -1030,12 +1030,15 @@ async function fbSet(path, data) {
 }
 
 async function fbGetOrdered(field, limit) {
-  const url = `${FB_URL}/rankings.json?orderBy="${field}"&limitToLast=${limit}`;
+  // orderByはインデックス設定が必要なため全件取得してクライアントソート
+  const url = `${FB_URL}/rankings.json`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Firebase GET failed: ${res.status}`);
   const raw = await res.json();
   if (!raw) return [];
-  return Object.values(raw).sort((a, b) => (b[field] ?? 0) - (a[field] ?? 0));
+  return Object.values(raw)
+    .sort((a, b) => (b[field] ?? 0) - (a[field] ?? 0))
+    .slice(0, limit);
 }
 
 async function fbGetOne(playerName) {
@@ -1309,17 +1312,10 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
           )}
 
           {/* 引き継ぎボタン */}
-          <div style={{padding:"12px 14px",borderTop:"1px solid var(--line)",display:"flex",flexDirection:"column",gap:8}}>
-            {/* 自分のUUID表示 */}
-            <div style={{fontSize:11,color:"var(--ink-soft)"}}>
-              引き継ぎコード
-            </div>
-            <div style={{fontSize:11,fontFamily:"monospace",background:"var(--fill)",borderRadius:8,padding:"6px 10px",wordBreak:"break-all",userSelect:"all"}}>
-              {myUUID}
-            </div>
+          <div style={{padding:"12px 14px",borderTop:"1px solid var(--line)"}}>
             <button
               className="ar-rank-submit-btn"
-              style={{fontSize:12,padding:"8px 0",background:"var(--fill)",color:"var(--ink)",border:"1.5px solid var(--line)",borderRadius:10}}
+              style={{fontSize:12,padding:"8px 0",width:"100%",background:"var(--fill)",color:"var(--ink)",border:"1.5px solid var(--line)",borderRadius:10}}
               onClick={() => setShowTransfer(true)}
             >
               別端末から引き継ぐ
@@ -3038,6 +3034,13 @@ export default function App() {
                       <button className={`ar-switch ${data.settings.sound ? "on" : ""}`} onClick={() => updateSettings({ sound: !data.settings.sound })}>
                         <span className="ar-switch-knob" />
                       </button>
+                    </div>
+                    <div className="ar-setting-row" style={{flexDirection:"column",alignItems:"flex-start",gap:6}}>
+                      <div className="ar-setting-label">引き継ぎコード</div>
+                      <div style={{fontSize:11,fontFamily:"monospace",background:"var(--fill)",borderRadius:8,padding:"6px 10px",wordBreak:"break-all",userSelect:"all",width:"100%",boxSizing:"border-box",color:"var(--ink)"}}>
+                        {getOrCreateUUID()}
+                      </div>
+                      <div className="ar-setting-desc">別端末への引き継ぎはRankingパネルから行えます</div>
                     </div>
                   </div>
                   <button className={`ar-reset-btn ${resetArmed ? "armed" : ""}`} onClick={handleResetClick}>
