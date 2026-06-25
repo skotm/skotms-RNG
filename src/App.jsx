@@ -992,14 +992,250 @@ function PlayerNameEditor({ playerName, setPlayerName }) {
   );
 }
 
-/* Ranking panel — requires external backend (Firebase etc.) */
-function RankingPanel({ onClose, playerName, setPlayerName }) {
+/* ---------------------------------------------------------------------- */
+/* Firebase config — replace with your own project values                  */
+/* ---------------------------------------------------------------------- */
+const FB_URL = "https://skotms-rng-default-rtdb.asia-southeast1.firebasedatabase.app";
+const FB_SECRET = "kqpe62ip820g1rcm";
+
+const RANK_TABS = [
+  { id: "bestAura",    label: "Best Aura",   field: "bestAuraChance", fmt: (r) => r.bestAuraName ?? "—" },
+  { id: "totalRolls", label: "Rolls",        field: "totalRolls",     fmt: (r) => (r.totalRolls ?? 0).toLocaleString() },
+  { id: "aether",     label: "Aether",       field: "aether",         fmt: (r) => (r.aether ?? 0).toLocaleString() },
+  { id: "playtime",   label: "Play Time",    field: "playSeconds",    fmt: (r) => formatTime(r.playSeconds ?? 0) },
+];
+
+const RANK_LIMIT = 50;
+const RANK_CACHE_MS = 5 * 60 * 1000; // 5分キャッシュ
+
+// バリデーション — 明らかに不正な値はアップロードしない
+function validateRankEntry(entry) {
+  if (entry.totalRolls > 100_000_000) return false;
+  if (entry.aether > 10_000_000_000) return false;
+  if (entry.playSeconds < 0) return false;
+  // aetherはtotalAetherEarnedを超えない
+  if (entry.totalAetherEarned > 0 && entry.aether > entry.totalAetherEarned) return false;
+  return true;
+}
+
+// Firebase REST API helpers
+async function fbSet(path, data) {
+  const res = await fetch(`${FB_URL}/${path}.json`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`Firebase PUT failed: ${res.status}`);
+  return res.json();
+}
+
+async function fbGetOrdered(field, limit) {
+  const url = `${FB_URL}/rankings.json?orderBy="${field}"&limitToLast=${limit}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Firebase GET failed: ${res.status}`);
+  const raw = await res.json();
+  if (!raw) return [];
+  return Object.values(raw).sort((a, b) => (b[field] ?? 0) - (a[field] ?? 0));
+}
+
+async function fbGetOne(playerName) {
+  const res = await fetch(`${FB_URL}/rankings/${encodeURIComponent(playerName)}.json`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// キャッシュ（タブごと・メモリ内）
+const rankCache = {}; // { [tabId]: { data, fetchedAt } }
+
+/* Ranking panel */
+function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
+  const [tab, setTab] = useState("bestAura");
+  const [rows, setRows] = useState([]);
+  const [myEntry, setMyEntry] = useState(null);
+  const [status, setStatus] = useState("idle"); // idle | uploading | loading | done | error
+  const [myRank, setMyRank] = useState(null);   // null = 圏外 or 不明
+  const [totalCount, setTotalCount] = useState(null);
+
+  const tabDef = RANK_TABS.find(t => t.id === tab);
+
+  // パネルを開いた瞬間に自分のデータをアップロード → ランキング取得
+  useEffect(() => {
+    let cancelled = false;
+
+    async function init() {
+      // 1. アップロード
+      setStatus("uploading");
+      const entry = {
+        playerName,
+        bestAuraId:      data.bestAuraId ?? null,
+        bestAuraName:    bestAura?.name ?? null,
+        bestAuraChance:  bestAura?.chance ?? 0,
+        totalRolls:      data.totalRolls ?? 0,
+        aether:          data.aether ?? 0,
+        totalAetherEarned: data.totalAetherEarned ?? 0,
+        playSeconds:     data.playSeconds ?? 0,
+        updatedAt:       Date.now(),
+        token:           FB_SECRET,
+      };
+
+      if (validateRankEntry(entry)) {
+        try {
+          await fbSet(`rankings/${encodeURIComponent(playerName)}`, entry);
+        } catch (e) {
+          // アップロード失敗は無視してランキング表示は続ける
+          console.warn("Ranking upload failed:", e);
+        }
+      }
+
+      if (cancelled) return;
+      await loadTab(tab, cancelled);
+    }
+
+    init();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 開いたとき1回のみ
+
+  // タブ切り替え時にランキング再取得（キャッシュあれば再利用）
+  useEffect(() => {
+    let cancelled = false;
+    loadTab(tab, cancelled);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  async function loadTab(tabId, cancelled) {
+    const def = RANK_TABS.find(t => t.id === tabId);
+    if (!def) return;
+
+    // キャッシュチェック
+    const cached = rankCache[tabId];
+    if (cached && Date.now() - cached.fetchedAt < RANK_CACHE_MS) {
+      if (!cancelled) applyRows(cached.data, def.field);
+      return;
+    }
+
+    setStatus("loading");
+    try {
+      const [ranked, me] = await Promise.all([
+        fbGetOrdered(def.field, RANK_LIMIT),
+        fbGetOne(playerName),
+      ]);
+      if (cancelled) return;
+
+      rankCache[tabId] = { data: ranked, fetchedAt: Date.now() };
+      setMyEntry(me);
+      applyRows(ranked, def.field);
+      setStatus("done");
+    } catch (e) {
+      if (!cancelled) setStatus("error");
+    }
+  }
+
+  function applyRows(ranked, field) {
+    setRows(ranked);
+    setTotalCount(ranked.length);
+    const idx = ranked.findIndex(r => r.playerName === playerName);
+    setMyRank(idx >= 0 ? idx + 1 : null);
+    setStatus("done");
+  }
+
+  async function handleRetry() {
+    delete rankCache[tab];
+    await loadTab(tab, false);
+  }
+
+  const isLoading = status === "uploading" || status === "loading";
+  const isError   = status === "error";
+
+  // 自分が圏外かどうか
+  const meInList  = rows.some(r => r.playerName === playerName);
+  const meOutside = status === "done" && myEntry && !meInList;
+
   return (
     <>
       <PanelHead title="Ranking" onClose={onClose} />
-      <div style={{padding:"40px 20px",textAlign:"center",color:"var(--ink-soft)",fontSize:14,lineHeight:1.6}}>
-        Ranking requires an external service.<br/>Coming soon!
+
+      {/* タブ */}
+      <div className="ar-shop-tabs">
+        {RANK_TABS.map(t => (
+          <button
+            key={t.id}
+            className={`ar-shop-tab ${tab === t.id ? "active" : ""}`}
+            onClick={() => setTab(t.id)}
+            disabled={isLoading}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      {/* ローディング */}
+      {isLoading && (
+        <div className="ar-rank-loading">
+          <div className="ar-rank-spinner" />
+          {status === "uploading" ? "Submitting your score…" : "Loading ranking…"}
+        </div>
+      )}
+
+      {/* エラー */}
+      {isError && (
+        <div className="ar-rank-loading" style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+          <span>Failed to load ranking.</span>
+          <button className="ar-rank-submit-btn" onClick={handleRetry}>Retry</button>
+        </div>
+      )}
+
+      {/* ランキングリスト */}
+      {status === "done" && (
+        <div style={{flex:1,overflowY:"auto",position:"relative"}}>
+          {/* 自分の順位サマリ */}
+          {myRank !== null ? (
+            <div className="ar-rank-my-pos">
+              Your rank: <strong>#{myRank}</strong> of {totalCount}
+            </div>
+          ) : (
+            <div className="ar-rank-my-pos">You are not yet in the top {RANK_LIMIT}</div>
+          )}
+
+          <div className="ar-rank-list ar-group">
+            {rows.map((r, i) => {
+              const isMe = r.playerName === playerName;
+              const tierColor = r.bestAuraId
+                ? (AURAS.find(a => a.id === r.bestAuraId)?.tier !== undefined
+                  ? TIERS[AURAS.find(a => a.id === r.bestAuraId).tier]?.color
+                  : null)
+                : null;
+              return (
+                <div key={r.playerName} className={`ar-rank-row ${isMe ? "me" : ""}`}>
+                  <span className="ar-rank-pos">
+                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
+                  </span>
+                  <span className="ar-rank-name">{r.playerName}</span>
+                  {tab === "bestAura" && tierColor && (
+                    <span style={{width:8,height:8,borderRadius:"50%",background:tierColor,flexShrink:0,display:"inline-block"}} />
+                  )}
+                  <span className="ar-rank-val">{tabDef.fmt(r)}</span>
+                </div>
+              );
+            })}
+            {rows.length === 0 && (
+              <div style={{padding:"32px 20px",textAlign:"center",color:"var(--ink-soft)",fontSize:14}}>
+                No entries yet. Be the first!
+              </div>
+            )}
+          </div>
+
+          {/* 自分が圏外のとき最下部に固定表示 */}
+          {meOutside && myEntry && (
+            <div className="ar-rank-row me" style={{borderTop:"1px solid var(--line)",marginTop:4}}>
+              <span className="ar-rank-pos">—</span>
+              <span className="ar-rank-name">{myEntry.playerName}</span>
+              <span className="ar-rank-val">{tabDef.fmt(myEntry)}</span>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -1972,9 +2208,17 @@ export default function App() {
           font-feature-settings: "tnum" 1; white-space: nowrap;
         }
         .ar-rank-my-pos {
-          text-align: center; padding: 10px; font-size: 12px;
-          color: var(--ink-soft); border-top: 1px solid var(--line);
+          text-align: center; padding: 8px 14px; font-size: 12px;
+          color: var(--ink-soft); border-bottom: 1px solid var(--line);
         }
+        .ar-rank-spinner {
+          width: 24px; height: 24px; border-radius: 50%;
+          border: 2.5px solid var(--line);
+          border-top-color: var(--ink);
+          animation: ar-spin 0.7s linear infinite;
+          margin: 0 auto 10px;
+        }
+        @keyframes ar-spin { to { transform: rotate(360deg); } }
 
 
         /* ── Username setup screen ── */
