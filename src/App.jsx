@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { LayoutGrid, Trophy, Settings as SettingsIcon, BarChart3, FastForward, Pause, Lock, X, RotateCcw, CheckCircle2, Circle, Eye, Star, ShoppingBag, TrendingUp } from "lucide-react";
+import { LayoutGrid, Trophy, Settings as SettingsIcon, BarChart3, FastForward, Pause, Lock, X, RotateCcw, CheckCircle2, Circle, Eye, Star, ShoppingBag, TrendingUp, Crown, Clock, Dices } from "lucide-react";
 
 /* ---------------------------------------------------------------------- */
 /* Data — rarity accents borrowed from Apple's own system colour palette  */
@@ -138,6 +138,7 @@ const ACHIEVEMENTS_DEF = [
 ];
 
 const STORAGE_KEY = "aura-roll:v1";
+// Ranking via external service — to be implemented separately
 
 const defaultData = () => ({
   totalRolls: 0,
@@ -802,6 +803,207 @@ function ItemIcon({ id, size = 26 }) {
   return icons[id] ?? null;
 }
 
+
+/* ---------------------------------------------------------------------- */
+/* Ranking Panel                                                            */
+/* ---------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------- */
+/* Username setup screen (shown on first launch)                           */
+/* ---------------------------------------------------------------------- */
+function UsernameScreen({ onDone }) {
+  const [name, setName] = useState("");
+  const [shake, setShake] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+  const handleSubmit = () => {
+    const trimmed = name.trim();
+    if (!trimmed) { setShake(true); setTimeout(() => setShake(false), 500); return; }
+    localStorage.setItem("aura-roll:playerName", trimmed);
+    onDone(trimmed);
+  };
+
+  const R = (props) => <div style={props.s}>{props.children}</div>;
+
+  return (
+    <div style={{
+      minHeight:"100vh", width:"100%", background:"#fff",
+      fontFamily:"-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif",
+      display:"flex", flexDirection:"column", alignItems:"center",
+      justifyContent:"center", padding:"0 20px", boxSizing:"border-box",
+      color:"#1c1c1e",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @keyframes un-fadein { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes un-shake  { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+        @keyframes un-pulse  { 0%,100%{opacity:0.15} 50%{opacity:0.3} }
+        .un-wrap { width:100%; max-width:390px; animation:un-fadein 0.5s ease both; }
+        .un-panel {
+          border:2px solid #1c1c1e; border-radius:32px;
+          overflow:hidden; background:#fff;
+          margin-bottom:14px;
+        }
+        .un-panel-top {
+          padding:28px 24px 24px;
+          border-bottom:1px solid rgba(0,0,0,0.08);
+        }
+        .un-eyebrow {
+          font-size:11px; font-weight:700; letter-spacing:0.08em;
+          text-transform:uppercase; color:#8e8e93; margin-bottom:16px;
+          display:flex; align-items:center; gap:6px;
+        }
+        .un-game-title {
+          font-size:30px; font-weight:800; letter-spacing:-0.03em;
+          line-height:1.1; margin-bottom:6px;
+        }
+        .un-subtitle {
+          font-size:14px; color:#8e8e93; line-height:1.4;
+        }
+        .un-panel-bottom { padding:20px 24px 24px; }
+        .un-field-label {
+          font-size:12px; font-weight:700; color:#8e8e93;
+          letter-spacing:0.05em; text-transform:uppercase;
+          margin-bottom:8px;
+        }
+        .un-field {
+          display:flex; align-items:center;
+          border:1.5px solid rgba(0,0,0,0.12); border-radius:14px;
+          padding:0 14px; background:#f2f2f3;
+          transition:border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        }
+        .un-field.focus {
+          border-color:#1c1c1e; background:#fff;
+          box-shadow:0 0 0 3px rgba(28,28,30,0.07);
+        }
+        .un-field.shake { animation:un-shake 0.45s ease; border-color:#FF3B30; }
+        .un-input {
+          flex:1; border:none; outline:none; background:transparent;
+          padding:14px 0; font-size:17px; font-weight:500;
+          font-family:inherit; color:#1c1c1e; min-width:0;
+        }
+        .un-input::placeholder { color:#c7c7cc; }
+        .un-count { font-size:12px; color:#c7c7cc; font-feature-settings:"tnum" 1; }
+        .un-error { font-size:12px; color:#FF3B30; font-weight:600; margin-top:6px; }
+        .un-btn {
+          width:100%; min-height:58px; border:none; border-radius:16px;
+          background:#1c1c1e; color:#fff; font-size:17px; font-weight:700;
+          font-family:inherit; letter-spacing:-0.01em; cursor:pointer;
+          transition:opacity 0.15s;
+        }
+        .un-btn:disabled { opacity:0.25; cursor:not-allowed; }
+        .un-btn:not(:disabled):active { opacity:0.8; }
+        .un-hint { text-align:center; font-size:13px; color:#8e8e93; margin-top:10px; }
+        .un-divider {
+          display:flex; align-items:center; gap:6px;
+          padding:14px 24px 0;
+        }
+        .un-divider-line { flex:1; height:1px; background:rgba(0,0,0,0.08); }
+        .un-divider-text { font-size:11px; color:#c7c7cc; font-weight:600; }
+      `}</style>
+
+      <div className="un-wrap">
+        {/* ── パネル ── */}
+        <div className="un-panel">
+
+          {/* 上段：ゲームタイトル */}
+          <div className="un-panel-top">
+            <div className="un-eyebrow">
+              <svg width="11" height="13" viewBox="-0.75 -0.75 14.5 17.5" fill="none" stroke="#8e8e93" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6.5 1C6.5 1 1 7.2 1 10.5a5.5 5.5 0 0 0 11 0C12 7.2 6.5 1 6.5 1Z"/>
+              </svg>
+              RNG Game
+            </div>
+            <div className="un-game-title">skotm's RNG</div>
+            <div className="un-subtitle">Collect auras. Chase the rarest.</div>
+          </div>
+
+          {/* 仕切り */}
+          <div className="un-divider">
+            <div className="un-divider-line"/>
+            <span className="un-divider-text">PLAYER SETUP</span>
+            <div className="un-divider-line"/>
+          </div>
+
+          {/* 下段：名前入力 */}
+          <div className="un-panel-bottom">
+            <div className="un-field-label">Your name</div>
+            <div className={`un-field${focused?" focus":""}${shake?" shake":""}`}>
+              <input
+                className="un-input"
+                value={name}
+                onChange={e => setName(e.target.value.slice(0,16))}
+                onKeyDown={e => e.key==="Enter" && handleSubmit()}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                placeholder="Enter your name…"
+                maxLength={16}
+                autoFocus
+              />
+              <span className="un-count">{name.length}/16</span>
+            </div>
+            {shake && <div className="un-error">Name cannot be empty</div>}
+          </div>
+        </div>
+
+        {/* ── ボタン ── */}
+        <button className="un-btn" onClick={handleSubmit} disabled={!name.trim()}>
+          Start Playing
+        </button>
+        <div className="un-hint">or press Enter</div>
+      </div>
+    </div>
+  );
+}
+
+function PlayerNameEditor({ playerName, setPlayerName }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(playerName);
+
+  const handleSave = () => {
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    localStorage.setItem("aura-roll:playerName", trimmed);
+    setPlayerName(trimmed);
+    setEditing(false);
+  };
+
+  if (!editing) {
+    return (
+      <button className="ar-name-edit-btn" onClick={() => { setVal(playerName); setEditing(true); }}>
+        Edit
+      </button>
+    );
+  }
+  return (
+    <div className="ar-name-edit-row">
+      <input
+        className="ar-rank-name-input"
+        value={val}
+        onChange={e => setVal(e.target.value.slice(0, 16))}
+        onKeyDown={e => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
+        maxLength={16}
+        autoFocus
+        style={{fontSize:13, padding:"6px 10px"}}
+      />
+      <button className="ar-rank-submit-btn" onClick={handleSave} disabled={!val.trim()} style={{padding:"6px 12px",fontSize:12}}>Save</button>
+      <button className="ar-name-cancel-btn" onClick={() => setEditing(false)}>✕</button>
+    </div>
+  );
+}
+
+/* Ranking panel — requires external backend (Firebase etc.) */
+function RankingPanel({ onClose, playerName, setPlayerName }) {
+  return (
+    <>
+      <PanelHead title="Ranking" onClose={onClose} />
+      <div style={{padding:"40px 20px",textAlign:"center",color:"var(--ink-soft)",fontSize:14,lineHeight:1.6}}>
+        Ranking requires an external service.<br/>Coming soon!
+      </div>
+    </>
+  );
+}
+
 function PanelHead({ title, onClose }) {
   return (
     <div className="ar-panel-head">
@@ -839,6 +1041,8 @@ export default function App() {
   const [headerBadgeAuraId, setHeaderBadgeAuraId] = useState(null);
   const [aetherPopup, setAetherPopup] = useState(null); // { amount, isNew, key }
   const [shopTab, setShopTab] = useState("enhancement"); // "enhancement" | "items"
+  const [playerName, setPlayerName] = useState(() => localStorage.getItem("aura-roll:playerName") ?? "");
+  const needsUsername = playerName.trim() === "";
   const [invTab, setInvTab] = useState("auras"); // "auras" | "items"
   const [rotationKey, setRotationKey] = useState(() => getRotationKey());
   const [nextRotationIn, setNextRotationIn] = useState(0);
@@ -1324,12 +1528,19 @@ export default function App() {
     setRevealText("—");
     setRevealAuraId(null);
     setResetArmed(false);
+    // ユーザーネームもリセット → 入力画面に戻る
+    localStorage.removeItem("aura-roll:playerName");
+    setPlayerName("");
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
     } catch (e) {
       /* ignore */
     }
   };
+
+  if (needsUsername) {
+    return <UsernameScreen onDone={(name) => setPlayerName(name)} />;
+  }
 
   return (
     <div className="ar-root">
@@ -1716,6 +1927,159 @@ export default function App() {
 
 
 
+
+        /* ── Ranking ── */
+        .ar-rank-name-row {
+          display: flex; gap: 8px; padding: 12px 12px 8px;
+          border-bottom: 1px solid var(--line);
+        }
+        .ar-rank-name-input {
+          flex: 1; border: 1.5px solid var(--line); border-radius: 10px;
+          padding: 8px 12px; font-size: 14px; background: var(--bg);
+          outline: none; font-family: inherit;
+        }
+        .ar-rank-name-input:focus { border-color: var(--ink); }
+        .ar-rank-submit-btn {
+          padding: 8px 16px; border-radius: 10px; border: none;
+          background: var(--ink); color: #fff; font-size: 13px;
+          font-weight: 700; cursor: pointer; white-space: nowrap;
+          font-family: inherit;
+        }
+        .ar-rank-submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .ar-rank-submit-btn.loading { opacity: 0.6; }
+        .ar-rank-loading {
+          text-align: center; padding: 40px 20px;
+          color: var(--ink-soft); font-size: 14px;
+        }
+        .ar-rank-list { padding: 4px 0; }
+        .ar-rank-row {
+          display: flex; align-items: center; gap: 10px;
+          padding: 11px 14px; border-bottom: 1px solid var(--line);
+          font-size: 14px;
+        }
+        .ar-rank-row:last-child { border-bottom: none; }
+        .ar-rank-row.me { background: rgba(0,0,0,0.04); font-weight: 700; }
+        .ar-rank-pos {
+          width: 24px; text-align: center; font-size: 13px;
+          font-weight: 700; color: var(--ink-soft); flex-shrink: 0;
+        }
+        .ar-rank-row:nth-child(1) .ar-rank-pos { color: #FFD700; }
+        .ar-rank-row:nth-child(2) .ar-rank-pos { color: #C0C0C0; }
+        .ar-rank-row:nth-child(3) .ar-rank-pos { color: #CD7F32; }
+        .ar-rank-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ar-rank-val {
+          font-size: 13px; font-weight: 600; color: var(--ink-soft);
+          font-feature-settings: "tnum" 1; white-space: nowrap;
+        }
+        .ar-rank-my-pos {
+          text-align: center; padding: 10px; font-size: 12px;
+          color: var(--ink-soft); border-top: 1px solid var(--line);
+        }
+
+
+        /* ── Username setup screen ── */
+        /* ── Username screen ── */
+        .ar-username-screen {
+          min-height: 100vh; width: 100%;
+          background: var(--bg);
+          font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+          display: flex; align-items: center; justify-content: center;
+          padding: 32px 20px;
+        }
+        .ar-username-wrap {
+          width: 100%; max-width: 460px;
+          display: flex; flex-direction: column; gap: 16px;
+        }
+        .ar-username-header {
+          display: flex; align-items: center; gap: 8px;
+          padding: 0 4px;
+        }
+        .ar-username-title {
+          font-size: 20px; font-weight: 800; letter-spacing: -0.02em;
+        }
+        /* メインパネル: ar-panelと同じ太枠 */
+        .ar-username-panel {
+          width: 100%;
+          border: 2px solid var(--ink);
+          border-radius: 28px;
+          overflow: hidden;
+          background: var(--bg);
+        }
+        .ar-username-panel-inner {
+          padding: 20px 20px 24px;
+          display: flex; flex-direction: column; gap: 10px;
+        }
+        .ar-username-label {
+          font-size: 13px; font-weight: 700; color: var(--ink-soft);
+          letter-spacing: 0.02em; text-transform: uppercase;
+        }
+        .ar-username-field {
+          display: flex; align-items: center;
+          border: 1.5px solid var(--line); border-radius: 14px;
+          padding: 0 14px; background: var(--fill);
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .ar-username-field.focus {
+          border-color: var(--ink); background: var(--bg);
+        }
+        .ar-username-field.shake {
+          animation: ar-username-shake 0.45s ease;
+          border-color: #FF3B30;
+        }
+        @keyframes ar-username-shake {
+          0%,100% { transform: translateX(0); }
+          18% { transform: translateX(-7px); }
+          36% { transform: translateX(7px); }
+          54% { transform: translateX(-4px); }
+          72% { transform: translateX(4px); }
+        }
+        .ar-username-input {
+          flex: 1; border: none; outline: none;
+          padding: 14px 0; font-size: 17px; font-weight: 500;
+          font-family: inherit; background: transparent; color: var(--ink);
+        }
+        .ar-username-input::placeholder { color: #C7C7CC; }
+        .ar-username-count {
+          font-size: 12px; color: var(--ink-soft);
+          font-feature-settings: "tnum" 1; flex-shrink: 0;
+        }
+        .ar-username-error {
+          font-size: 12px; color: #FF3B30; font-weight: 600;
+        }
+        /* ボタン: ar-roll-btnと同スタイル */
+        .ar-username-btn {
+          width: 100%;
+          min-height: 58px;
+          background: var(--ink); color: #fff;
+          border: none; border-radius: 16px;
+          font-size: 17px; font-weight: 700;
+          cursor: pointer; font-family: inherit;
+          letter-spacing: -0.01em;
+          transition: opacity 0.15s;
+        }
+        .ar-username-btn:active { opacity: 0.85; }
+        .ar-username-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .ar-username-hint {
+          text-align: center; font-size: 13px; color: var(--ink-soft);
+          margin-top: -6px;
+        }
+
+        /* ── Player name editor in settings ── */
+        .ar-name-edit-btn {
+          padding: 7px 16px; border-radius: 10px;
+          background: var(--fill); border: 1.5px solid var(--line);
+          font-size: 13px; font-weight: 600; cursor: pointer;
+          font-family: inherit; color: var(--ink); white-space: nowrap;
+        }
+        .ar-name-edit-row {
+          display: flex; gap: 6px; align-items: center;
+        }
+        .ar-name-cancel-btn {
+          padding: 6px 10px; border-radius: 8px;
+          background: none; border: 1.5px solid var(--line);
+          font-size: 13px; cursor: pointer; color: var(--ink-soft);
+        }
+
         /* ── Shop tabs ── */
         .ar-shop-tabs {
           display: flex; border-bottom: 1px solid var(--line);
@@ -1948,8 +2312,11 @@ export default function App() {
           </div>
           <div className="ar-header-right">
             <nav className="ar-nav">
-              <button className={`ar-icon-btn ${view === "stats" ? "active" : ""}`} onClick={() => goToView("stats")} aria-label="Stats" disabled={blockingRoll}>
-                <BarChart3 size={17} />
+              <button className={`ar-icon-btn ${view === "ranking" ? "active" : ""}`} onClick={() => goToView("ranking")} aria-label="Ranking" disabled={blockingRoll}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 4l3 12h14l3-12-6 4-4-8-4 8-6-4z"/>
+                  <path d="M5 20h14"/>
+                </svg>
               </button>
               <button className={`ar-icon-btn ${view === "shop" ? "active" : ""}`} onClick={() => goToView("shop")} aria-label="Shop" disabled={blockingRoll}>
                 <ShoppingBag size={17} />
@@ -1997,41 +2364,8 @@ export default function App() {
               </div>
             )}
 
-            {view === "stats" && (
-              <>
-                <PanelHead title="Stats" onClose={() => setView("roll")} />
-                <div className="ar-panel-scroll">
-                  <div className="ar-stats-grid">
-                    <div className="ar-stat-card">
-                      <div className="ar-stat-label">Total rolls</div>
-                      <div className="ar-stat-value">{data.totalRolls.toLocaleString()}</div>
-                    </div>
-                    <div className="ar-stat-card">
-                      <div className="ar-stat-label">Time played</div>
-                      <div className="ar-stat-value">{formatTime(data.playSeconds)}</div>
-                    </div>
-                    <div className="ar-stat-card">
-                      <div className="ar-stat-label">Best aura</div>
-                      <div className="ar-stat-value">{bestAura ? bestAura.name : "—"}</div>
-                    </div>
-                    <div className="ar-stat-card">
-                      <div className="ar-stat-label">Collected</div>
-                      <div className="ar-stat-value">{collectedCount} / {AURAS.length}</div>
-                    </div>
-                    <div className="ar-stat-card ar-stat-card-aether">
-                      <div className="ar-stat-label" style={{display:"flex",alignItems:"center",gap:4}}>
-                        <DropletIcon size={11} />
-                        Aether
-                      </div>
-                      <div className="ar-stat-value">{(data.aether ?? 0).toLocaleString()}</div>
-                    </div>
-                    <div className="ar-stat-card">
-                      <div className="ar-stat-label">Total earned</div>
-                      <div className="ar-stat-value">{(data.totalAetherEarned ?? 0).toLocaleString()}</div>
-                    </div>
-                  </div>
-                </div>
-              </>
+            {view === "ranking" && (
+              <RankingPanel data={data} bestAura={bestAura} onClose={() => setView("roll")} playerName={playerName} setPlayerName={setPlayerName} />
             )}
 
             {view === "collection" && (
@@ -2325,7 +2659,42 @@ export default function App() {
               <>
                 <PanelHead title="Settings" onClose={() => setView("roll")} />
                 <div className="ar-panel-scroll">
+                  <div className="ar-stats-grid" style={{marginBottom:16}}>
+                    <div className="ar-stat-card">
+                      <div className="ar-stat-label">Total rolls</div>
+                      <div className="ar-stat-value">{data.totalRolls.toLocaleString()}</div>
+                    </div>
+                    <div className="ar-stat-card">
+                      <div className="ar-stat-label">Time played</div>
+                      <div className="ar-stat-value">{formatTime(data.playSeconds)}</div>
+                    </div>
+                    <div className="ar-stat-card">
+                      <div className="ar-stat-label">Best aura</div>
+                      <div className="ar-stat-value">{bestAura ? bestAura.name : "—"}</div>
+                    </div>
+                    <div className="ar-stat-card">
+                      <div className="ar-stat-label">Collected</div>
+                      <div className="ar-stat-value">{collectedCount} / {AURAS.length}</div>
+                    </div>
+                    <div className="ar-stat-card ar-stat-card-aether">
+                      <div className="ar-stat-label" style={{display:"flex",alignItems:"center",gap:4}}>
+                        <DropletIcon size={11} />Aether
+                      </div>
+                      <div className="ar-stat-value">{(data.aether ?? 0).toLocaleString()}</div>
+                    </div>
+                    <div className="ar-stat-card">
+                      <div className="ar-stat-label">Total earned</div>
+                      <div className="ar-stat-value">{(data.totalAetherEarned ?? 0).toLocaleString()}</div>
+                    </div>
+                  </div>
                   <div className="ar-group">
+                    <div className="ar-setting-row">
+                      <div>
+                        <div className="ar-setting-label">Player name</div>
+                        <div className="ar-setting-desc">{playerName}</div>
+                      </div>
+                      <PlayerNameEditor playerName={playerName} setPlayerName={setPlayerName} />
+                    </div>
                     <div className="ar-setting-row">
                       <div>
                         <div className="ar-setting-label">Sound</div>
