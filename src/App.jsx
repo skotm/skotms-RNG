@@ -1044,6 +1044,20 @@ async function fbGetOne(playerName) {
   return res.json();
 }
 
+// UUID — 初回生成してlocalStorageに永続化
+function getOrCreateUUID() {
+  const key = "aura-roll:uuid";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
 // キャッシュ（タブごと・メモリ内）
 const rankCache = {}; // { [tabId]: { data, fetchedAt } }
 
@@ -1053,20 +1067,26 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
   const [rows, setRows] = useState([]);
   const [myEntry, setMyEntry] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | uploading | loading | done | error
-  const [myRank, setMyRank] = useState(null);   // null = 圏外 or 不明
+  const [myRank, setMyRank] = useState(null);
   const [totalCount, setTotalCount] = useState(null);
 
+  // 引き継ぎUI
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferInput, setTransferInput] = useState("");
+  const [transferNameInput, setTransferNameInput] = useState("");
+  const [transferError, setTransferError] = useState("");
+  const [transferDone, setTransferDone] = useState(false);
+
+  const myUUID = getOrCreateUUID();
   const tabDef = RANK_TABS.find(t => t.id === tab);
 
-  // パネルを開いた瞬間に自分のデータをアップロード → ランキング取得
   useEffect(() => {
     let cancelled = false;
-
     async function init() {
-      // 1. アップロード
       setStatus("uploading");
       const entry = {
         playerName,
+        uuid:            myUUID,
         bestAuraId:      data.bestAuraId ?? null,
         bestAuraName:    bestAura?.name ?? null,
         bestAuraChance:  bestAura?.chance ?? 0,
@@ -1077,26 +1097,18 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
         updatedAt:       Date.now(),
         token:           FB_SECRET,
       };
-
       if (validateRankEntry(entry)) {
-        try {
-          await fbSet(`rankings/${encodeURIComponent(playerName)}`, entry);
-        } catch (e) {
-          // アップロード失敗は無視してランキング表示は続ける
-          console.warn("Ranking upload failed:", e);
-        }
+        try { await fbSet(`rankings/${myUUID}`, entry); }
+        catch (e) { console.warn("Ranking upload failed:", e); }
       }
-
       if (cancelled) return;
       await loadTab(tab, cancelled);
     }
-
     init();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 開いたとき1回のみ
+  }, []);
 
-  // タブ切り替え時にランキング再取得（キャッシュあれば再利用）
   useEffect(() => {
     let cancelled = false;
     loadTab(tab, cancelled);
@@ -1107,22 +1119,18 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
   async function loadTab(tabId, cancelled) {
     const def = RANK_TABS.find(t => t.id === tabId);
     if (!def) return;
-
-    // キャッシュチェック
     const cached = rankCache[tabId];
     if (cached && Date.now() - cached.fetchedAt < RANK_CACHE_MS) {
       if (!cancelled) applyRows(cached.data, def.field);
       return;
     }
-
     setStatus("loading");
     try {
       const [ranked, me] = await Promise.all([
         fbGetOrdered(def.field, RANK_LIMIT),
-        fbGetOne(playerName),
+        fbGetOne(myUUID),
       ]);
       if (cancelled) return;
-
       rankCache[tabId] = { data: ranked, fetchedAt: Date.now() };
       setMyEntry(me);
       applyRows(ranked, def.field);
@@ -1135,7 +1143,7 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
   function applyRows(ranked, field) {
     setRows(ranked);
     setTotalCount(ranked.length);
-    const idx = ranked.findIndex(r => r.playerName === playerName);
+    const idx = ranked.findIndex(r => r.uuid === myUUID);
     setMyRank(idx >= 0 ? idx + 1 : null);
     setStatus("done");
   }
@@ -1145,12 +1153,82 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
     await loadTab(tab, false);
   }
 
+  // 引き継ぎ処理
+  async function handleTransfer() {
+    setTransferError("");
+    const inputUUID = transferInput.trim();
+    const inputName = transferNameInput.trim();
+    if (!inputUUID || !inputName) {
+      setTransferError("引き継ぎコードとプレイヤー名を両方入力してください");
+      return;
+    }
+    try {
+      const entry = await fbGetOne(inputUUID);
+      if (!entry) {
+        setTransferError("引き継ぎコードが見つかりません");
+        return;
+      }
+      if (entry.playerName !== inputName) {
+        setTransferError("プレイヤー名が一致しません");
+        return;
+      }
+      // UUIDを上書き保存
+      localStorage.setItem("aura-roll:uuid", inputUUID);
+      setTransferDone(true);
+    } catch (e) {
+      setTransferError("通信エラーが発生しました。再度お試しください");
+    }
+  }
+
   const isLoading = status === "uploading" || status === "loading";
   const isError   = status === "error";
-
-  // 自分が圏外かどうか
-  const meInList  = rows.some(r => r.playerName === playerName);
+  const meInList  = rows.some(r => r.uuid === myUUID);
   const meOutside = status === "done" && myEntry && !meInList;
+
+  // 引き継ぎ画面
+  if (showTransfer) {
+    return (
+      <>
+        <PanelHead title="Transfer Data" onClose={() => setShowTransfer(false)} />
+        <div className="ar-panel-scroll">
+          {transferDone ? (
+            <div style={{textAlign:"center",padding:"32px 20px"}}>
+              <div style={{fontSize:28,marginBottom:12}}>✅</div>
+              <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>引き継ぎ完了</div>
+              <div style={{fontSize:13,color:"var(--ink-soft)"}}>ページをリロードすると反映されます</div>
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:10,paddingTop:8}}>
+              <div style={{fontSize:13,color:"var(--ink-soft)",lineHeight:1.6}}>
+                別端末・別ブラウザのランキングデータを引き継ぎます。<br/>
+                元の端末で表示した引き継ぎコードとプレイヤー名を入力してください。
+              </div>
+              <input
+                className="ar-rank-name-input"
+                placeholder="引き継ぎコード（UUID）"
+                value={transferInput}
+                onChange={e => setTransferInput(e.target.value)}
+                style={{width:"100%",boxSizing:"border-box"}}
+              />
+              <input
+                className="ar-rank-name-input"
+                placeholder="プレイヤー名"
+                value={transferNameInput}
+                onChange={e => setTransferNameInput(e.target.value)}
+                style={{width:"100%",boxSizing:"border-box"}}
+              />
+              {transferError && (
+                <div style={{fontSize:12,color:"#FF3B30",fontWeight:600}}>{transferError}</div>
+              )}
+              <button className="ar-rank-submit-btn" onClick={handleTransfer} style={{width:"100%",padding:"12px 0"}}>
+                引き継ぐ
+              </button>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -1170,7 +1248,6 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
         ))}
       </div>
 
-      {/* ローディング */}
       {isLoading && (
         <div className="ar-rank-loading">
           <div className="ar-rank-spinner" />
@@ -1178,7 +1255,6 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
         </div>
       )}
 
-      {/* エラー */}
       {isError && (
         <div className="ar-rank-loading" style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
           <span>Failed to load ranking.</span>
@@ -1186,10 +1262,8 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
         </div>
       )}
 
-      {/* ランキングリスト */}
       {status === "done" && (
         <div style={{flex:1,overflowY:"auto",position:"relative"}}>
-          {/* 自分の順位サマリ */}
           {myRank !== null ? (
             <div className="ar-rank-my-pos">
               Your rank: <strong>#{myRank}</strong> of {totalCount}
@@ -1200,14 +1274,14 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
 
           <div className="ar-rank-list ar-group">
             {rows.map((r, i) => {
-              const isMe = r.playerName === playerName;
+              const isMe = r.uuid === myUUID;
               const tierColor = r.bestAuraId
                 ? (AURAS.find(a => a.id === r.bestAuraId)?.tier !== undefined
                   ? TIERS[AURAS.find(a => a.id === r.bestAuraId).tier]?.color
                   : null)
                 : null;
               return (
-                <div key={r.playerName} className={`ar-rank-row ${isMe ? "me" : ""}`}>
+                <div key={r.uuid} className={`ar-rank-row ${isMe ? "me" : ""}`}>
                   <span className="ar-rank-pos">
                     {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
                   </span>
@@ -1226,7 +1300,6 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
             )}
           </div>
 
-          {/* 自分が圏外のとき最下部に固定表示 */}
           {meOutside && myEntry && (
             <div className="ar-rank-row me" style={{borderTop:"1px solid var(--line)",marginTop:4}}>
               <span className="ar-rank-pos">—</span>
@@ -1234,6 +1307,24 @@ function RankingPanel({ data, bestAura, onClose, playerName, setPlayerName }) {
               <span className="ar-rank-val">{tabDef.fmt(myEntry)}</span>
             </div>
           )}
+
+          {/* 引き継ぎボタン */}
+          <div style={{padding:"12px 14px",borderTop:"1px solid var(--line)",display:"flex",flexDirection:"column",gap:8}}>
+            {/* 自分のUUID表示 */}
+            <div style={{fontSize:11,color:"var(--ink-soft)"}}>
+              引き継ぎコード
+            </div>
+            <div style={{fontSize:11,fontFamily:"monospace",background:"var(--fill)",borderRadius:8,padding:"6px 10px",wordBreak:"break-all",userSelect:"all"}}>
+              {myUUID}
+            </div>
+            <button
+              className="ar-rank-submit-btn"
+              style={{fontSize:12,padding:"8px 0",background:"var(--fill)",color:"var(--ink)",border:"1.5px solid var(--line)",borderRadius:10}}
+              onClick={() => setShowTransfer(true)}
+            >
+              別端末から引き継ぐ
+            </button>
+          </div>
         </div>
       )}
     </>
