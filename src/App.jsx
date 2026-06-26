@@ -6,111 +6,258 @@ import { LayoutGrid, Trophy, Settings as SettingsIcon, BarChart3, FastForward, P
 /* ---------------------------------------------------------------------- */
 
 const TIERS = [
-  { name: "Basic", color: "#8E8E93" },
-  { name: "Epic", color: "#34C759" },
-  { name: "Unique", color: "#007AFF" },
-  { name: "Legendary", color: "#AF52DE" },
-  { name: "Mythic", color: "#FF9500" },
-  { name: "Exalted", color: "#FFCC00" },
-  { name: "Glorious", color: "#00C7BE" },
-  { name: "Transcendent", color: "#FF2D55" },
-  { name: "Dimensional", color: "#000000" },
+  { name: "Basic",        color: "#8E8E93" },  // 0
+  { name: "Epic",         color: "#34C759" },  // 1
+  { name: "Unique",       color: "#007AFF" },  // 2
+  { name: "Legendary",    color: "#AF52DE" },  // 3
+  { name: "Mythic",       color: "#FF9500" },  // 4
+  { name: "Exalted",      color: "#FFCC00" },  // 5
+  { name: "Glorious",     color: "#00C7BE" },  // 6
+  { name: "Transcendent", color: "#FF2D55" },  // 7
+  { name: "Dimensional",  color: "#1C1C1E" },  // 8  7.5B〜99.9B
+  { name: "Cosmic",       color: "#6E40C9" },  // 9  100B〜999B
+  { name: "Eternal",      color: "#FF6B00" },  // 10 1T〜9.9T
+  { name: "Primordial",   color: "#FFD700" },  // 11 10T+  (Sol's "DIMENSIONAL"相当の頂点)
 ];
 
 const AURAS = [
   // Basic — 1 to 999
-  { id: "common", name: "Common", chance: 2, tier: 0 },
-  { id: "uncommon", name: "Uncommon", chance: 8, tier: 0 },
-  { id: "breeze", name: "Breeze", chance: 25, tier: 0 },
-  { id: "pebble", name: "Pebble", chance: 60, tier: 0 },
-  { id: "drizzle", name: "Drizzle", chance: 150, tier: 0 },
-  { id: "flicker", name: "Flicker", chance: 400, tier: 0 },
-  // Epic — 1,000 to 9,999
-  { id: "ember", name: "Ember", chance: 1000, tier: 1 },
-  { id: "frostbite", name: "Frostbite", chance: 2200, tier: 1 },
-  { id: "voltage", name: "Voltage", chance: 3500, tier: 1 },
-  { id: "mossglow", name: "Mossglow", chance: 5200, tier: 1 },
-  { id: "cinder", name: "Cinder", chance: 8000, tier: 1 },
-  // Unique — 10,000 to 99,999
-  { id: "riptide", name: "Riptide", chance: 12000, tier: 2 },
-  { id: "permafrost", name: "Permafrost", chance: 22000, tier: 2 },
-  { id: "quartzline", name: "Quartzline", chance: 38000, tier: 2 },
-  { id: "eclipse_shard", name: "Eclipse Shard", chance: 55000, tier: 2 },
-  { id: "stormcaller", name: "Stormcaller", chance: 80000, tier: 2 },
-  // Legendary — 100,000 to 999,999
-  { id: "wraith", name: "Wraith", chance: 120000, tier: 3 },
-  { id: "aurora_veil", name: "Aurora Veil", chance: 250000, tier: 3 },
-  { id: "obsidian", name: "Obsidian", chance: 420000, tier: 3 },
-  { id: "solstice", name: "Solstice", chance: 600000, tier: 3 },
-  { id: "phantom_edge", name: "Phantom Edge", chance: 850000, tier: 3 },
-  // Mythic — 1,000,000 to 9,999,999
-  { id: "leviathan", name: "Leviathan", chance: 1200000, tier: 4 },
-  { id: "seraph_wing", name: "Seraph Wing", chance: 2500000, tier: 4 },
-  { id: "inferno_core", name: "Inferno Core", chance: 4200000, tier: 4 },
-  { id: "tempest_crown", name: "Tempest Crown", chance: 6000000, tier: 4 },
-  { id: "wyrmscale", name: "Wyrmscale", chance: 8500000, tier: 4 },
-  // Exalted — 10,000,000 to 99,999,999
-  { id: "sovereign", name: "Sovereign", chance: 15000000, tier: 5 },
-  { id: "paragon", name: "Paragon", chance: 35000000, tier: 5 },
-  { id: "halo_drift", name: "Halo Drift", chance: 55000000, tier: 5 },
-  { id: "eternum", name: "Eternum", chance: 80000000, tier: 5 },
-  // Glorious — 100,000,000 to 999,999,999
-  { id: "genesis", name: "Genesis", chance: 150000000, tier: 6 },
-  { id: "zenith_pulse", name: "Zenith Pulse", chance: 350000000, tier: 6 },
-  { id: "singularity", name: "Singularity", chance: 600000000, tier: 6 },
-  { id: "empyrean", name: "Empyrean", chance: 850000000, tier: 6 },
-  // Transcendent — 1,000,000,000 to 7,499,999,999
-  { id: "oblivion", name: "Oblivion", chance: 1200000000, tier: 7 },
-  { id: "nullspace", name: "Nullspace", chance: 2500000000, tier: 7 },
-  { id: "omega", name: "Omega", chance: 4500000000, tier: 7 },
-  { id: "voidheart", name: "Voidheart", chance: 7000000000, tier: 7 },
-  // Dimensional — 7,500,000,000 and beyond, the single apex aura
-  { id: "omniverse", name: "Omniverse", chance: 9000000000, tier: 8 },
+  { id: "common",    name: "Common",    chance: 2,   tier: 0 },
+  { id: "uncommon",  name: "Uncommon",  chance: 8,   tier: 0 },
+  { id: "natural",   name: "Natural",   chance: 16,  tier: 0 },
+  { id: "breeze",    name: "Breeze",    chance: 25,  tier: 0 },
+  { id: "pebble",    name: "Pebble",    chance: 60,  tier: 0 },
+  { id: "topaz",     name: "Topaz",     chance: 90,  tier: 0 },
+  { id: "drizzle",   name: "Drizzle",   chance: 150, tier: 0 },
+  { id: "ruby",      name: "Ruby",      chance: 220, tier: 0 },
+  { id: "emerald",   name: "Emerald",   chance: 300, tier: 0 },
+  { id: "sapphire",  name: "Sapphire",  chance: 400, tier: 0 },
+  { id: "flicker",   name: "Flicker",   chance: 500, tier: 0 },
+  { id: "gilded",    name: "Gilded",    chance: 650, tier: 0 },
+  { id: "ink",       name: "Ink",       chance: 800, tier: 0 },
 
-  // --- Mutations — independent entries with their own fixed odds (Sol's RNG-style),
-  // linked back to their base via mutationOf for collection-branching display ---
-  // (common_echo 1/12, uncommon_glint 1/48 は1/100以上のため削除)
-  { id: "breeze_gale", name: "Breeze : Gale", chance: 150, tier: 0, mutationOf: "breeze" },
-  { id: "pebble_fossil", name: "Pebble : Fossil", chance: 360, tier: 0, mutationOf: "pebble" },
-  { id: "drizzle_monsoon", name: "Drizzle : Monsoon", chance: 900, tier: 0, mutationOf: "drizzle" },
-  { id: "flicker_strobe", name: "Flicker : Strobe", chance: 2400, tier: 1, mutationOf: "flicker" },
-  { id: "ember_wildfire", name: "Ember : Wildfire", chance: 6000, tier: 1, mutationOf: "ember" },
-  { id: "frostbite_glacial", name: "Frostbite : Glacial", chance: 13200, tier: 2, mutationOf: "frostbite" },
-  { id: "voltage_overcurrent", name: "Voltage : Overcurrent", chance: 21000, tier: 2, mutationOf: "voltage" },
-  { id: "mossglow_verdant", name: "Mossglow : Verdant", chance: 31200, tier: 2, mutationOf: "mossglow" },
-  { id: "cinder_ashfall", name: "Cinder : Ashfall", chance: 48000, tier: 2, mutationOf: "cinder" },
-  { id: "riptide_maelstrom", name: "Riptide : Maelstrom", chance: 72000, tier: 2, mutationOf: "riptide" },
-  { id: "permafrost_absolute_zero", name: "Permafrost : Absolute Zero", chance: 132000, tier: 3, mutationOf: "permafrost" },
-  { id: "quartzline_prism", name: "Quartzline : Prism", chance: 228000, tier: 3, mutationOf: "quartzline" },
-  { id: "eclipse_shard_umbra", name: "Eclipse Shard : Umbra", chance: 330000, tier: 3, mutationOf: "eclipse_shard" },
-  { id: "stormcaller_thunderhead", name: "Stormcaller : Thunderhead", chance: 480000, tier: 3, mutationOf: "stormcaller" },
-  { id: "wraith_banshee", name: "Wraith : Banshee", chance: 720000, tier: 3, mutationOf: "wraith" },
-  { id: "aurora_veil_polaris", name: "Aurora Veil : Polaris", chance: 1500000, tier: 4, mutationOf: "aurora_veil" },
-  { id: "obsidian_onyx", name: "Obsidian : Onyx", chance: 2520000, tier: 4, mutationOf: "obsidian" },
-  { id: "solstice_equinox", name: "Solstice : Equinox", chance: 3600000, tier: 4, mutationOf: "solstice" },
-  { id: "phantom_edge_specter", name: "Phantom Edge : Specter", chance: 5100000, tier: 4, mutationOf: "phantom_edge" },
-  { id: "leviathan_kraken", name: "Leviathan : Kraken", chance: 7200000, tier: 4, mutationOf: "leviathan" },
-  { id: "seraph_wing_archangel", name: "Seraph Wing : Archangel", chance: 15000000, tier: 5, mutationOf: "seraph_wing" },
-  { id: "inferno_core_pyroclasm", name: "Inferno Core : Pyroclasm", chance: 25200000, tier: 5, mutationOf: "inferno_core" },
-  { id: "tempest_crown_cataclysm", name: "Tempest Crown : Cataclysm", chance: 36000000, tier: 5, mutationOf: "tempest_crown" },
-  { id: "wyrmscale_drakonic", name: "Wyrmscale : Drakonic", chance: 51000000, tier: 5, mutationOf: "wyrmscale" },
-  { id: "sovereign_imperator", name: "Sovereign : Imperator", chance: 90000000, tier: 5, mutationOf: "sovereign" },
-  { id: "paragon_exemplar", name: "Paragon : Exemplar", chance: 210000000, tier: 6, mutationOf: "paragon" },
-  { id: "halo_drift_seraphim", name: "Halo Drift : Seraphim", chance: 330000000, tier: 6, mutationOf: "halo_drift" },
-  { id: "eternum_infinitum", name: "Eternum : Infinitum", chance: 480000000, tier: 6, mutationOf: "eternum" },
-  { id: "genesis_origin", name: "Genesis : Origin", chance: 900000000, tier: 6, mutationOf: "genesis" },
-  { id: "zenith_pulse_supernova", name: "Zenith Pulse : Supernova", chance: 2100000000, tier: 7, mutationOf: "zenith_pulse" },
-  { id: "singularity_event_horizon", name: "Singularity : Event Horizon", chance: 3600000000, tier: 7, mutationOf: "singularity" },
-  { id: "empyrean_elysium", name: "Empyrean : Elysium", chance: 5100000000, tier: 7, mutationOf: "empyrean" },
-  { id: "oblivion_abyss", name: "Oblivion : Abyss", chance: 7200000000, tier: 7, mutationOf: "oblivion" },
-  { id: "nullspace_void_rift", name: "Nullspace : Void Rift", chance: 15000000000, tier: 8, mutationOf: "nullspace" },
-  { id: "omega_alpha", name: "Omega : Alpha", chance: 27000000000, tier: 8, mutationOf: "omega" },
-  { id: "voidheart_entropy", name: "Voidheart : Entropy", chance: 42000000000, tier: 8, mutationOf: "voidheart" },
-  { id: "omniverse_multiverse", name: "Omniverse : Multiverse", chance: 54000000000, tier: 8, mutationOf: "omniverse" },
+  // Epic — 1,000 to 9,999
+  { id: "ember",     name: "Ember",     chance: 1000, tier: 1 },
+  { id: "ash",       name: "Ash",       chance: 1500, tier: 1 },
+  { id: "frostbite", name: "Frostbite", chance: 2000, tier: 1 },
+  { id: "glacier",   name: "Glacier",   chance: 2500, tier: 1 },
+  { id: "voltage",   name: "Voltage",   chance: 3000, tier: 1 },
+  { id: "magnetic",  name: "Magnetic",  chance: 3500, tier: 1 },
+  { id: "mossglow",  name: "Mossglow",  chance: 4200, tier: 1 },
+  { id: "flora",     name: "Flora",     chance: 5000, tier: 1 },
+  { id: "bleeding",  name: "Bleeding",  chance: 5800, tier: 1 },
+  { id: "cinder",    name: "Cinder",    chance: 6500, tier: 1 },
+  { id: "quartz",    name: "Quartz",    chance: 7500, tier: 1 },
+  { id: "honey",     name: "Honey",     chance: 8500, tier: 1 },
+  { id: "lost_soul", name: "Lost Soul", chance: 9500, tier: 1 },
+
+  // Unique — 10,000 to 99,999
+  { id: "riptide",      name: "Riptide",      chance: 12000, tier: 2 },
+  { id: "undead",       name: "Undead",        chance: 14000, tier: 2 },
+  { id: "corrosive",    name: "Corrosive",     chance: 16000, tier: 2 },
+  { id: "kawaii",       name: "Kawaii",        chance: 18000, tier: 2 },
+  { id: "powered",      name: "Powered",       chance: 20000, tier: 2 },
+  { id: "permafrost",   name: "Permafrost",    chance: 25000, tier: 2 },
+  { id: "copper",       name: "Copper",        chance: 30000, tier: 2 },
+  { id: "quartzline",   name: "Quartzline",    chance: 35000, tier: 2 },
+  { id: "aquatic",      name: "Aquatic",       chance: 40000, tier: 2 },
+  { id: "eclipse_shard",name: "Eclipse Shard", chance: 48000, tier: 2 },
+  { id: "solar",        name: "Solar",         chance: 55000, tier: 2 },
+  { id: "lunar",        name: "Lunar",         chance: 55000, tier: 2 },
+  { id: "starlight",    name: "Starlight",     chance: 65000, tier: 2 },
+  { id: "nautilus",     name: "Nautilus",      chance: 72000, tier: 2 },
+  { id: "stormcaller",  name: "Stormcaller",   chance: 85000, tier: 2 },
+
+  // Legendary — 100,000 to 999,999
+  { id: "exotic",        name: "Exotic",        chance: 100000,  tier: 3 },
+  { id: "wraith",        name: "Wraith",         chance: 130000,  tier: 3 },
+  { id: "comet",         name: "Comet",          chance: 160000,  tier: 3 },
+  { id: "jade",          name: "Jade",           chance: 200000,  tier: 3 },
+  { id: "spectre",       name: "Spectre",        chance: 240000,  tier: 3 },
+  { id: "aurora_veil",   name: "Aurora Veil",    chance: 280000,  tier: 3 },
+  { id: "jazz",          name: "Jazz",           chance: 320000,  tier: 3 },
+  { id: "aether_aura",   name: "Aether",         chance: 380000,  tier: 3 },
+  { id: "obsidian",      name: "Obsidian",       chance: 440000,  tier: 3 },
+  { id: "bounded",       name: "Bounded",        chance: 500000,  tier: 3 },
+  { id: "celestial",     name: "Celestial",      chance: 560000,  tier: 3 },
+  { id: "solstice",      name: "Solstice",       chance: 620000,  tier: 3 },
+  { id: "vortex",        name: "Vortex",         chance: 700000,  tier: 3 },
+  { id: "terror",        name: "Terror",         chance: 780000,  tier: 3 },
+  { id: "phantom_edge",  name: "Phantom Edge",   chance: 880000,  tier: 3 },
+  { id: "warlock",       name: "Warlock",        chance: 960000,  tier: 3 },
+
+  // Mythic — 1,000,000 to 9,999,999
+  { id: "arcane",         name: "Arcane",          chance: 1000000,  tier: 4 },
+  { id: "leviathan",      name: "Leviathan",        chance: 1200000,  tier: 4 },
+  { id: "cosmos",         name: "Cosmos",           chance: 1500000,  tier: 4 },
+  { id: "gravitational",  name: "Gravitational",    chance: 1800000,  tier: 4 },
+  { id: "seraph_wing",    name: "Seraph Wing",      chance: 2200000,  tier: 4 },
+  { id: "unbound",        name: "Unbound",          chance: 2600000,  tier: 4 },
+  { id: "virtual",        name: "Virtual",          chance: 3000000,  tier: 4 },
+  { id: "parasite",       name: "Parasite",         chance: 3500000,  tier: 4 },
+  { id: "galaxy",         name: "Galaxy",           chance: 4000000,  tier: 4 },
+  { id: "inferno_core",   name: "Inferno Core",     chance: 4500000,  tier: 4 },
+  { id: "twilight",       name: "Twilight",         chance: 5000000,  tier: 4 },
+  { id: "zeus",           name: "Zeus",             chance: 5500000,  tier: 4 },
+  { id: "tempest_crown",  name: "Tempest Crown",    chance: 6000000,  tier: 4 },
+  { id: "origin",         name: "Origin",           chance: 6500000,  tier: 4 },
+  { id: "hades",          name: "Hades",            chance: 7000000,  tier: 4 },
+  { id: "refraction",     name: "Refraction",       chance: 7500000,  tier: 4 },
+  { id: "wyrmscale",      name: "Wyrmscale",        chance: 8000000,  tier: 4 },
+  { id: "velocity",       name: "Velocity",         chance: 8500000,  tier: 4 },
+  { id: "amethyst",       name: "Amethyst",         chance: 9200000,  tier: 4 },
+
+  // Exalted — 10,000,000 to 99,999,999
+  { id: "sovereign",      name: "Sovereign",        chance: 12000000,  tier: 5 },
+  { id: "guardian",       name: "Guardian",         chance: 15000000,  tier: 5 },
+  { id: "chromatic",      name: "Chromatic",        chance: 18000000,  tier: 5 },
+  { id: "melodic",        name: "Melodic",          chance: 22000000,  tier: 5 },
+  { id: "paragon",        name: "Paragon",          chance: 26000000,  tier: 5 },
+  { id: "icarus",         name: "Icarus",           chance: 30000000,  tier: 5 },
+  { id: "halo_drift",     name: "Halo Drift",       chance: 35000000,  tier: 5 },
+  { id: "ethereal",       name: "Ethereal",         chance: 40000000,  tier: 5 },
+  { id: "plasma",         name: "Plasma",           chance: 45000000,  tier: 5 },
+  { id: "matrix",         name: "Matrix",           chance: 52000000,  tier: 5 },
+  { id: "runic",          name: "Runic",            chance: 58000000,  tier: 5 },
+  { id: "sentinel",       name: "Sentinel",         chance: 64000000,  tier: 5 },
+  { id: "dominion",       name: "Dominion",         chance: 72000000,  tier: 5 },
+  { id: "eternum",        name: "Eternum",          chance: 82000000,  tier: 5 },
+  { id: "starborn",       name: "Starborn",         chance: 92000000,  tier: 5 },
+
+  // Glorious — 100,000,000 to 999,999,999
+  { id: "genesis",        name: "Genesis",          chance: 120000000,  tier: 6 },
+  { id: "spectraflow",    name: "Spectraflow",      chance: 150000000,  tier: 6 },
+  { id: "overture",       name: "Overture",         chance: 200000000,  tier: 6 },
+  { id: "symphony",       name: "Symphony",         chance: 250000000,  tier: 6 },
+  { id: "zenith_pulse",   name: "Zenith Pulse",     chance: 300000000,  tier: 6 },
+  { id: "felled",         name: "Felled",           chance: 350000000,  tier: 6 },
+  { id: "prophecy",       name: "Prophecy",         chance: 400000000,  tier: 6 },
+  { id: "maelstrom",      name: "Maelstrom",        chance: 450000000,  tier: 6 },
+  { id: "singularity",    name: "Singularity",      chance: 500000000,  tier: 6 },
+  { id: "archangel",      name: "Archangel",        chance: 560000000,  tier: 6 },
+  { id: "atlas",          name: "Atlas",            chance: 620000000,  tier: 6 },
+  { id: "abyssal_hunter", name: "Abyssal Hunter",   chance: 700000000,  tier: 6 },
+  { id: "empyrean",       name: "Empyrean",         chance: 780000000,  tier: 6 },
+  { id: "ascendant",      name: "Ascendant",        chance: 880000000,  tier: 6 },
+
+  // Transcendent — 1,000,000,000 to 7,499,999,999
+  { id: "oblivion",       name: "Oblivion",         chance: 1100000000, tier: 7 },
+  { id: "nyctophobia",    name: "Nyctophobia",      chance: 1400000000, tier: 7 },
+  { id: "pixelation",     name: "Pixelation",       chance: 1800000000, tier: 7 },
+  { id: "nullspace",      name: "Nullspace",         chance: 2200000000, tier: 7 },
+  { id: "luminosity",     name: "Luminosity",        chance: 2800000000, tier: 7 },
+  { id: "omega",          name: "Omega",             chance: 3500000000, tier: 7 },
+  { id: "equinox",        name: "Equinox",           chance: 4500000000, tier: 7 },
+  { id: "voidheart",      name: "Voidheart",         chance: 6000000000, tier: 7 },
+
+  // Dimensional — 7,500,000,000〜99,999,999,999
+  { id: "omniverse",      name: "Omniverse",         chance: 9000000000,  tier: 8 },
+  { id: "masterhand",     name: "Master Hand",        chance: 12000000000, tier: 8 },
+  { id: "oblivion_gate",  name: "Oblivion Gate",      chance: 18000000000, tier: 8 },
+  { id: "abyss_walker",   name: "Abyss Walker",       chance: 28000000000, tier: 8 },
+  { id: "null_sovereign", name: "Null Sovereign",     chance: 45000000000, tier: 8 },
+  { id: "void_emperor",   name: "Void Emperor",       chance: 70000000000, tier: 8 },
+
+  // Cosmic — 100,000,000,000〜999,999,999,999
+  { id: "starweaver",     name: "Starweaver",         chance: 120000000000, tier: 9 },
+  { id: "nebula_core",    name: "Nebula Core",        chance: 200000000000, tier: 9 },
+  { id: "event_horizon",  name: "Event Horizon",      chance: 350000000000, tier: 9 },
+  { id: "galactic_rift",  name: "Galactic Rift",      chance: 550000000000, tier: 9 },
+  { id: "dark_matter",    name: "Dark Matter",        chance: 800000000000, tier: 9 },
+
+  // Eternal — 1,000,000,000,000〜9,999,999,999,999
+  { id: "chronos",        name: "Chronos",            chance: 1500000000000,  tier: 10 },
+  { id: "infinity_bloom", name: "Infinity Bloom",     chance: 3000000000000,  tier: 10 },
+  { id: "the_last_light", name: "The Last Light",     chance: 6000000000000,  tier: 10 },
+  { id: "axiom",          name: "Axiom",              chance: 9000000000000,  tier: 10 },
+
+  // Primordial — 10,000,000,000,000+ (頂点・Sol's RNG「Dimensional」相当)
+  { id: "origin_zero",    name: "Origin : Zero",      chance: 15000000000000, tier: 11 },
+  { id: "genesis_absolute",name:"Genesis : Absolute", chance: 40000000000000, tier: 11 },
+  { id: "the_beginning",  name: "The Beginning",      chance: 100000000000000,tier: 11 },
+
+  // ── Mutations ──────────────────────────────────────────────────────────────
+  // Basic mutations
+  { id: "breeze_gale",         name: "Breeze : Gale",          chance: 150,        tier: 0, mutationOf: "breeze" },
+  { id: "pebble_fossil",       name: "Pebble : Fossil",        chance: 360,        tier: 0, mutationOf: "pebble" },
+  { id: "topaz_sunfire",       name: "Topaz : Sunfire",        chance: 540,        tier: 0, mutationOf: "topaz" },
+  { id: "drizzle_monsoon",     name: "Drizzle : Monsoon",      chance: 900,        tier: 0, mutationOf: "drizzle" },
+  { id: "ruby_brimstone",      name: "Ruby : Brimstone",       chance: 1300,       tier: 1, mutationOf: "ruby" },
+  { id: "flicker_strobe",      name: "Flicker : Strobe",       chance: 3000,       tier: 1, mutationOf: "flicker" },
+
+  // Epic mutations
+  { id: "ember_wildfire",      name: "Ember : Wildfire",       chance: 6000,       tier: 1, mutationOf: "ember" },
+  { id: "ash_cinder",          name: "Ash : Cinder",           chance: 9000,       tier: 1, mutationOf: "ash" },
+  { id: "frostbite_glacial",   name: "Frostbite : Glacial",    chance: 12000,      tier: 2, mutationOf: "frostbite" },
+  { id: "glacier_permafrost",  name: "Glacier : Permafrost",   chance: 15000,      tier: 2, mutationOf: "glacier" },
+  { id: "voltage_overcurrent", name: "Voltage : Overcurrent",  chance: 18000,      tier: 2, mutationOf: "voltage" },
+  { id: "magnetic_polarity",   name: "Magnetic : Polarity",    chance: 21000,      tier: 2, mutationOf: "magnetic" },
+  { id: "mossglow_verdant",    name: "Mossglow : Verdant",     chance: 25000,      tier: 2, mutationOf: "mossglow" },
+  { id: "quartz_prism",        name: "Quartz : Prism",         chance: 49000,      tier: 2, mutationOf: "quartz" },
+
+  // Unique mutations
+  { id: "riptide_maelstrom",   name: "Riptide : Maelstrom",    chance: 72000,      tier: 2, mutationOf: "riptide" },
+  { id: "undead_devil",        name: "Undead : Devil",          chance: 84000,      tier: 2, mutationOf: "undead" },
+  { id: "ink_leak",            name: "Ink : Leak",             chance: 84000,      tier: 2, mutationOf: "ink" },
+  { id: "solar_solstice",      name: "Solar : Solstice",       chance: 330000,     tier: 3, mutationOf: "solar" },
+  { id: "lunar_full_moon",     name: "Lunar : Full Moon",      chance: 330000,     tier: 3, mutationOf: "lunar" },
+  { id: "starlight_kunzite",   name: "Starlight : Kunzite",    chance: 390000,     tier: 3, mutationOf: "starlight" },
+  { id: "nautilus_lost",       name: "Nautilus : Lost",        chance: 460000,     tier: 3, mutationOf: "nautilus" },
+
+  // Legendary mutations
+  { id: "exotic_apex",         name: "Exotic : Apex",          chance: 600000,     tier: 3, mutationOf: "exotic" },
+  { id: "wraith_banshee",      name: "Wraith : Banshee",       chance: 780000,     tier: 3, mutationOf: "wraith" },
+  { id: "celestial_divine",    name: "Celestial : Divine",     chance: 3360000,    tier: 4, mutationOf: "celestial" },
+  { id: "aurora_veil_polaris", name: "Aurora Veil : Polaris",  chance: 1680000,    tier: 4, mutationOf: "aurora_veil" },
+  { id: "jazz_orchestra",      name: "Jazz : Orchestra",       chance: 1920000,    tier: 4, mutationOf: "jazz" },
+  { id: "obsidian_onyx",       name: "Obsidian : Onyx",        chance: 2640000,    tier: 4, mutationOf: "obsidian" },
+  { id: "vortex_hurricane",    name: "Vortex : Hurricane",     chance: 4200000,    tier: 4, mutationOf: "vortex" },
+
+  // Mythic mutations
+  { id: "arcane_legacy",       name: "Arcane : Legacy",        chance: 6000000,    tier: 4, mutationOf: "arcane" },
+  { id: "cosmos_alice",        name: "Cosmos : Alice",         chance: 9000000,    tier: 4, mutationOf: "cosmos" },
+  { id: "seraph_wing_archangel",name:"Seraph Wing : Archangel",chance: 13200000,   tier: 5, mutationOf: "seraph_wing" },
+  { id: "galaxy_nebula",       name: "Galaxy : Nebula",        chance: 24000000,   tier: 5, mutationOf: "galaxy" },
+  { id: "twilight_iridescent", name: "Twilight : Iridescent",  chance: 36000000,   tier: 5, mutationOf: "twilight" },
+  { id: "inferno_core_pyroclasm",name:"Inferno Core : Pyroclasm",chance:27000000,  tier: 5, mutationOf: "inferno_core" },
+  { id: "virtual_fatal_error", name: "Virtual : Fatal Error",  chance: 40000000,   tier: 5, mutationOf: "virtual" },
+  { id: "tempest_crown_cataclysm",name:"Tempest Crown : Cataclysm",chance:36000000,tier:5, mutationOf: "tempest_crown" },
+
+  // Exalted mutations
+  { id: "chromatic_genesis",   name: "Chromatic : Genesis",    chance: 108000000,  tier: 6, mutationOf: "chromatic" },
+  { id: "melodic_serenade",    name: "Melodic : Serenade",     chance: 132000000,  tier: 6, mutationOf: "melodic" },
+  { id: "matrix_overdrive",    name: "Matrix : Overdrive",     chance: 312000000,  tier: 6, mutationOf: "matrix" },
+  { id: "sovereign_imperator", name: "Sovereign : Imperator",  chance: 72000000,   tier: 5, mutationOf: "sovereign" },
+  { id: "paragon_exemplar",    name: "Paragon : Exemplar",     chance: 156000000,  tier: 6, mutationOf: "paragon" },
+  { id: "halo_drift_seraphim", name: "Halo Drift : Seraphim",  chance: 210000000,  tier: 6, mutationOf: "halo_drift" },
+  { id: "eternum_infinitum",   name: "Eternum : Infinitum",    chance: 492000000,  tier: 6, mutationOf: "eternum" },
+
+  // Glorious mutations
+  { id: "genesis_origin",      name: "Genesis : Origin",       chance: 720000000,  tier: 6, mutationOf: "genesis" },
+  { id: "zenith_pulse_supernova",name:"Zenith Pulse : Supernova",chance:1800000000,tier: 7, mutationOf: "zenith_pulse" },
+  { id: "singularity_event_horizon",name:"Singularity : Event Horizon",chance:3000000000,tier:7,mutationOf:"singularity"},
+  { id: "abyssal_hunter_awakened",name:"Abyssal Hunter : Awakened",chance:4200000000,tier:7,mutationOf:"abyssal_hunter"},
+  { id: "empyrean_elysium",    name: "Empyrean : Elysium",     chance: 4700000000, tier: 7, mutationOf: "empyrean" },
+  { id: "ascendant_apex",      name: "Ascendant : Apex",       chance: 5300000000, tier: 7, mutationOf: "ascendant" },
+
+  // Transcendent mutations
+  { id: "oblivion_abyss",      name: "Oblivion : Abyss",       chance: 6600000000, tier: 7, mutationOf: "oblivion" },
+  { id: "nullspace_void_rift",  name: "Nullspace : Void Rift",  chance: 13200000000,tier: 8, mutationOf: "nullspace" },
+  { id: "omega_alpha",         name: "Omega : Alpha",          chance: 21000000000,tier: 8, mutationOf: "omega" },
+  { id: "voidheart_entropy",   name: "Voidheart : Entropy",    chance: 36000000000,tier: 8, mutationOf: "voidheart" },
+  { id: "omniverse_multiverse",name: "Omniverse : Multiverse", chance: 54000000000,  tier: 8, mutationOf: "omniverse" },
+  { id: "masterhand_chaos",    name: "Master Hand : Chaos",    chance: 72000000000,  tier: 8, mutationOf: "masterhand" },
+  { id: "starweaver_cosmos",   name: "Starweaver : Cosmos",    chance: 720000000000, tier: 9, mutationOf: "starweaver" },
+  { id: "event_horizon_collapse",name:"Event Horizon : Collapse",chance:2100000000000,tier:10,mutationOf:"event_horizon"},
+  { id: "chronos_eternal",     name: "Chronos : Eternal",      chance: 9000000000000, tier: 10, mutationOf: "chronos" },
+  { id: "origin_zero_null",    name: "Origin : Zero / Null",   chance: 90000000000000,tier: 11, mutationOf: "origin_zero" },
 ];
 
 const colorOf = (aura) => TIERS[aura.tier].color;
 const hasTier = (d, tierIdx) => AURAS.some((a) => a.tier === tierIdx && d.inventory[a.id]);
+
+const MUTATION_AURAS = AURAS.filter((a) => a.mutationOf);
+const mutationOwnedCount = (d) => MUTATION_AURAS.filter((a) => d.inventory[a.id]).length;
 
 const NORMAL_MS = 3500;
 const FAST_MS = 2000;
@@ -122,20 +269,63 @@ const MIN_STEP_MS = 45; // fastest tick, right after pressing roll
 const MAX_STEP_MS = 230; // slowest tick, just before the result locks in
 
 const ACHIEVEMENTS_DEF = [
-  { id: "roll_10", name: "Getting Started", desc: "Roll 10 times", goal: 10, check: (d) => d.totalRolls >= 10, metric: (d) => Math.min(d.totalRolls, 10) },
-  { id: "roll_100", name: "Regular", desc: "Roll 100 times", goal: 100, check: (d) => d.totalRolls >= 100, metric: (d) => Math.min(d.totalRolls, 100) },
-  { id: "roll_1000", name: "Dedicated", desc: "Roll 1,000 times", goal: 1000, check: (d) => d.totalRolls >= 1000, metric: (d) => Math.min(d.totalRolls, 1000) },
-  { id: "roll_10000", name: "Completionist", desc: "Roll 10,000 times", goal: 10000, check: (d) => d.totalRolls >= 10000, metric: (d) => Math.min(d.totalRolls, 10000) },
-  { id: "tier_epic", name: "First Epic", desc: "Pull an Epic-tier aura", goal: 1, check: (d) => hasTier(d, 1), metric: (d) => (hasTier(d, 1) ? 1 : 0) },
-  { id: "tier_unique", name: "First Unique", desc: "Pull a Unique-tier aura", goal: 1, check: (d) => hasTier(d, 2), metric: (d) => (hasTier(d, 2) ? 1 : 0) },
-  { id: "tier_legendary", name: "First Legendary", desc: "Pull a Legendary-tier aura", goal: 1, check: (d) => hasTier(d, 3), metric: (d) => (hasTier(d, 3) ? 1 : 0) },
-  { id: "tier_mythic", name: "First Mythic", desc: "Pull a Mythic-tier aura", goal: 1, check: (d) => hasTier(d, 4), metric: (d) => (hasTier(d, 4) ? 1 : 0) },
-  { id: "tier_exalted", name: "First Exalted", desc: "Pull an Exalted-tier aura", goal: 1, check: (d) => hasTier(d, 5), metric: (d) => (hasTier(d, 5) ? 1 : 0) },
-  { id: "tier_glorious", name: "First Glorious", desc: "Pull a Glorious-tier aura", goal: 1, check: (d) => hasTier(d, 6), metric: (d) => (hasTier(d, 6) ? 1 : 0) },
-  { id: "tier_transcendent", name: "First Transcendent", desc: "Pull a Transcendent-tier aura", goal: 1, check: (d) => hasTier(d, 7), metric: (d) => (hasTier(d, 7) ? 1 : 0) },
-  { id: "tier_dimensional", name: "First Dimensional", desc: "Pull the Dimensional aura", goal: 1, check: (d) => hasTier(d, 8), metric: (d) => (hasTier(d, 8) ? 1 : 0) },
+  // --- roll ---
+  { id: "roll_10", name: "Getting Started", desc: "Roll 10 times", goal: 10, group: "roll", order: 0, check: (d) => d.totalRolls >= 10, metric: (d) => Math.min(d.totalRolls, 10) },
+  { id: "roll_50", name: "Warming Up", desc: "Roll 50 times", goal: 50, group: "roll", order: 1, check: (d) => d.totalRolls >= 50, metric: (d) => Math.min(d.totalRolls, 50) },
+  { id: "roll_100", name: "Regular", desc: "Roll 100 times", goal: 100, group: "roll", order: 2, check: (d) => d.totalRolls >= 100, metric: (d) => Math.min(d.totalRolls, 100) },
+  { id: "roll_500", name: "Committed", desc: "Roll 500 times", goal: 500, group: "roll", order: 3, itemReward: [{ itemId: "lucky_die_3", qty: 3 }], check: (d) => d.totalRolls >= 500, metric: (d) => Math.min(d.totalRolls, 500) },
+  { id: "roll_1000", name: "Dedicated", desc: "Roll 1,000 times", goal: 1000, group: "roll", order: 4, itemReward: [{ itemId: "lucky_die_3", qty: 5 }], check: (d) => d.totalRolls >= 1000, metric: (d) => Math.min(d.totalRolls, 1000) },
+  { id: "roll_5000", name: "Relentless", desc: "Roll 5,000 times", goal: 5000, group: "roll", order: 5, itemReward: [{ itemId: "mega_lucky_die", qty: 1 }], check: (d) => d.totalRolls >= 5000, metric: (d) => Math.min(d.totalRolls, 5000) },
+  { id: "roll_10000", name: "Completionist", desc: "Roll 10,000 times", goal: 10000, group: "roll", order: 6, itemReward: [{ itemId: "mega_lucky_die", qty: 3 }], check: (d) => d.totalRolls >= 10000, metric: (d) => Math.min(d.totalRolls, 10000) },
+  { id: "roll_50000", name: "Tireless", desc: "Roll 50,000 times", goal: 50000, group: "roll", order: 7, itemReward: [{ itemId: "hyper_lucky_die", qty: 1 }], check: (d) => d.totalRolls >= 50000, metric: (d) => Math.min(d.totalRolls, 50000) },
+  { id: "roll_77777", name: "Lucky Sevens", desc: "Roll 77,777 times", goal: 77777, group: "roll", order: 8, itemReward: [{ itemId: "hyper_lucky_die", qty: 3 }], check: (d) => d.totalRolls >= 77777, metric: (d) => Math.min(d.totalRolls, 77777) },
+  { id: "roll_7777777", name: "Beyond Lucky", desc: "Roll 7,777,777 times", goal: 7777777, group: "roll", order: 9, itemReward: [{ itemId: "ultra_lucky_die", qty: 77 }], check: (d) => d.totalRolls >= 7777777, metric: (d) => Math.min(d.totalRolls, 7777777) },
+
+  // --- tier (first pull of each tier) ---
+  { id: "tier_epic", name: "First Epic", desc: "Pull an Epic-tier aura", goal: 1, group: "tier", order: 0, check: (d) => hasTier(d, 1), metric: (d) => (hasTier(d, 1) ? 1 : 0) },
+  { id: "tier_unique", name: "First Unique", desc: "Pull a Unique-tier aura", goal: 1, group: "tier", order: 1, check: (d) => hasTier(d, 2), metric: (d) => (hasTier(d, 2) ? 1 : 0) },
+  { id: "tier_legendary", name: "First Legendary", desc: "Pull a Legendary-tier aura", goal: 1, group: "tier", order: 2, check: (d) => hasTier(d, 3), metric: (d) => (hasTier(d, 3) ? 1 : 0) },
+  { id: "tier_mythic", name: "First Mythic", desc: "Pull a Mythic-tier aura", goal: 1, group: "tier", order: 3, check: (d) => hasTier(d, 4), metric: (d) => (hasTier(d, 4) ? 1 : 0) },
+  { id: "tier_exalted", name: "First Exalted", desc: "Pull an Exalted-tier aura", goal: 1, group: "tier", order: 4, check: (d) => hasTier(d, 5), metric: (d) => (hasTier(d, 5) ? 1 : 0) },
+  { id: "tier_glorious", name: "First Glorious", desc: "Pull a Glorious-tier aura", goal: 1, group: "tier", order: 5, check: (d) => hasTier(d, 6), metric: (d) => (hasTier(d, 6) ? 1 : 0) },
+  { id: "tier_transcendent", name: "First Transcendent", desc: "Pull a Transcendent-tier aura", goal: 1, group: "tier", order: 6, check: (d) => hasTier(d, 7), metric: (d) => (hasTier(d, 7) ? 1 : 0) },
+  { id: "tier_dimensional",   name: "First Dimensional",   desc: "Pull a Dimensional aura",  goal: 1, group: "tier", order: 7, check: (d) => hasTier(d, 8),  metric: (d) => (hasTier(d, 8)  ? 1 : 0) },
+  { id: "tier_cosmic",        name: "First Cosmic",         desc: "Pull a Cosmic aura",       goal: 1, group: "tier", order: 8, check: (d) => hasTier(d, 9),  metric: (d) => (hasTier(d, 9)  ? 1 : 0) },
+  { id: "tier_eternal",       name: "First Eternal",        desc: "Pull an Eternal aura",     goal: 1, group: "tier", order: 9, check: (d) => hasTier(d, 10), metric: (d) => (hasTier(d, 10) ? 1 : 0) },
+  { id: "tier_primordial",    name: "First Primordial",     desc: "Pull a Primordial aura",   goal: 1, group: "tier", order: 10, check: (d) => hasTier(d, 11), metric: (d) => (hasTier(d, 11) ? 1 : 0) },
+
+  // --- mutation ---
+  { id: "mutation_first", name: "First Mutation", desc: "Find a mutated aura", goal: 1, group: "mutation", order: 0, check: (d) => mutationOwnedCount(d) >= 1, metric: (d) => Math.min(mutationOwnedCount(d), 1) },
+  { id: "mutation_5", name: "Mutation Hunter", desc: "Collect 5 different mutated auras", goal: 5, group: "mutation", order: 1, check: (d) => mutationOwnedCount(d) >= 5, metric: (d) => Math.min(mutationOwnedCount(d), 5) },
+  { id: "mutation_15", name: "Mutation Collector", desc: "Collect 15 different mutated auras", goal: 15, group: "mutation", order: 2, check: (d) => mutationOwnedCount(d) >= 15, metric: (d) => Math.min(mutationOwnedCount(d), 15) },
+  { id: "mutation_all", name: "Mutation Master", desc: "Collect every mutated aura", goal: MUTATION_AURAS.length, group: "mutation", order: 3, check: (d) => mutationOwnedCount(d) >= MUTATION_AURAS.length, metric: (d) => mutationOwnedCount(d) },
+
+  // --- aether earned (lifetime) ---
+  { id: "aether_earn_10k", name: "Aether Saver", desc: "Earn 10,000 Aether in total", goal: 10000, group: "aether_earn", order: 0, check: (d) => (d.totalAetherEarned ?? 0) >= 10000, metric: (d) => Math.min(d.totalAetherEarned ?? 0, 10000) },
+  { id: "aether_earn_100k", name: "Aether Hoarder", desc: "Earn 100,000 Aether in total", goal: 100000, group: "aether_earn", order: 1, check: (d) => (d.totalAetherEarned ?? 0) >= 100000, metric: (d) => Math.min(d.totalAetherEarned ?? 0, 100000) },
+  { id: "aether_earn_1m", name: "Aether Tycoon", desc: "Earn 1,000,000 Aether in total", goal: 1000000, group: "aether_earn", order: 2, check: (d) => (d.totalAetherEarned ?? 0) >= 1000000, metric: (d) => Math.min(d.totalAetherEarned ?? 0, 1000000) },
+
+  // --- aether spent (lifetime, in shop) ---
+  { id: "aether_spend_10k", name: "Big Spender", desc: "Spend 10,000 Aether in total", goal: 10000, group: "aether_spend", order: 0, check: (d) => (d.totalAetherSpent ?? 0) >= 10000, metric: (d) => Math.min(d.totalAetherSpent ?? 0, 10000) },
+  { id: "aether_spend_100k", name: "Shopaholic", desc: "Spend 100,000 Aether in total", goal: 100000, group: "aether_spend", order: 1, check: (d) => (d.totalAetherSpent ?? 0) >= 100000, metric: (d) => Math.min(d.totalAetherSpent ?? 0, 100000) },
+
+  // --- playtime ---
+  { id: "playtime_1h", name: "Settling In", desc: "Play for 1 hour", goal: 3600, group: "playtime", order: 0, itemReward: [{ itemId: "lucky_die_3", qty: 3 }], check: (d) => (d.playSeconds ?? 0) >= 3600, metric: (d) => Math.min(d.playSeconds ?? 0, 3600) },
+  { id: "playtime_5h", name: "Regular Visitor", desc: "Play for 5 hours", goal: 18000, group: "playtime", order: 1, itemReward: [{ itemId: "mega_lucky_die", qty: 3 }], check: (d) => (d.playSeconds ?? 0) >= 18000, metric: (d) => Math.min(d.playSeconds ?? 0, 18000) },
+  { id: "playtime_10h", name: "Time Sink", desc: "Play for 10 hours", goal: 36000, group: "playtime", order: 2, itemReward: [{ itemId: "mega_lucky_die", qty: 5 }], check: (d) => (d.playSeconds ?? 0) >= 36000, metric: (d) => Math.min(d.playSeconds ?? 0, 36000) },
+  { id: "playtime_50h", name: "Devoted", desc: "Play for 50 hours", goal: 180000, group: "playtime", order: 3, itemReward: [{ itemId: "hyper_lucky_die", qty: 3 }], check: (d) => (d.playSeconds ?? 0) >= 180000, metric: (d) => Math.min(d.playSeconds ?? 0, 180000) },
+  { id: "playtime_100h", name: "No Touch Grass", desc: "Play for 100 hours", goal: 360000, group: "playtime", order: 4, itemReward: [{ itemId: "hyper_lucky_die", qty: 5 }], check: (d) => (d.playSeconds ?? 0) >= 360000, metric: (d) => Math.min(d.playSeconds ?? 0, 360000) },
+
+  // --- standalone (no group → always shown) ---
   { id: "collect_all", name: "Full Collection", desc: "Find every aura at least once", goal: AURAS.length, check: (d) => AURAS.every((a) => d.inventory[a.id]), metric: (d) => AURAS.filter((a) => d.inventory[a.id]).length },
 ];
+
+// 同ジャンルの直前(order-1)が未達成の場合、まだ「???」のまま隠す
+const isAchievementRevealed = (a, data) => {
+  if (!a.group || a.order === 0) return true;
+  const prevAch = ACHIEVEMENTS_DEF.find((x) => x.group === a.group && x.order === a.order - 1);
+  return prevAch ? data.achievementsUnlocked.includes(prevAch.id) : true;
+};
 
 const STORAGE_KEY = "aura-roll:v1";
 // Ranking via external service — to be implemented separately
@@ -183,9 +373,15 @@ const DUPLICATE_CAP = 50; // max conversions per aura
 // Achievement Aether rewards keyed by achievement id
 const ACHIEVEMENT_AETHER = {
   roll_10:             30,
+  roll_50:             80,
   roll_100:            150,
+  roll_500:            400,
   roll_1000:           800,
+  roll_5000:           2500,
   roll_10000:          5000,
+  roll_50000:          15000,
+  roll_77777:          25000,
+  roll_7777777:        2000000,
   tier_epic:           60,
   tier_unique:         200,
   tier_legendary:      700,
@@ -194,6 +390,23 @@ const ACHIEVEMENT_AETHER = {
   tier_glorious:       40000,
   tier_transcendent:   150000,
   tier_dimensional:    600000,
+  tier_cosmic:         2500000,
+  tier_eternal:        10000000,
+  tier_primordial:     40000000,
+  mutation_first:      100,
+  mutation_5:          1000,
+  mutation_15:         5000,
+  mutation_all:        100000,
+  aether_earn_10k:     200,
+  aether_earn_100k:    2000,
+  aether_earn_1m:      20000,
+  aether_spend_10k:    300,
+  aether_spend_100k:   3000,
+  playtime_1h:         100,
+  playtime_5h:         400,
+  playtime_10h:        1000,
+  playtime_50h:        8000,
+  playtime_100h:       20000,
   collect_all:         500000,
 };
 
@@ -449,6 +662,24 @@ const SHOP_STATS = [
 const LUCKY_EVERY = 10;
 const LUCKY_MULTIPLIER = 5;
 
+/* ラッキー倍率に応じた演出用オーラ選択
+   luck が高いほど高レアオーラが表示されやすくなる */
+function pickAnimAura(luck = 1, inventory = {}) {
+  const weighted = AURAS
+    .filter(a => !a.mutationOf || inventory[a.mutationOf])
+    .map(a => {
+      const effectiveChance = Math.max(a.chance / luck, 1);
+      return { aura: a, weight: 1 / effectiveChance };
+    });
+  const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
+  let r = Math.random() * totalWeight;
+  for (const { aura, weight } of weighted) {
+    r -= weight;
+    if (r <= 0) return aura;
+  }
+  return weighted[weighted.length - 1].aura;
+}
+
 function rollAura(luck = 1, inventory = {}, mutationBoost = 1) {
   const byRarity = [...AURAS].sort((a, b) => b.chance - a.chance); // rarest first
   for (let pass = 0; pass < 100000; pass++) {
@@ -494,9 +725,10 @@ function effectFor(tier) {
    4-point sparkle, a 5-point star, or a jagged 6-point sparkle, depending
    on how rare the result is */
 function cutsceneTypeFor(chance) {
-  if (chance >= 1000000) return "six";
-  if (chance >= 100000) return "star";
-  if (chance >= 10000) return "four";
+  if (chance >= 10000000000) return "six"; // Cosmic以上
+  if (chance >= 1000000000)  return "six";
+  if (chance >= 100000000)   return "star";
+  if (chance >= 10000)       return "four";
   return null;
 }
 
@@ -1046,6 +1278,7 @@ function MiniAuraEffect({ aura }) {
             style={{ left: `${p.left}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s`, "--drift": `${p.drift}px` }} />
         ))}
       </div>
+      {aura.mutationOf && <div className="aura-mutated-shard" />}
     </div>
   );
 }
@@ -1546,7 +1779,7 @@ export default function App() {
      cutscene (spinning sparkle/star, then a white flash + shake) plays
      first, and only then is the real result revealed. */
   const runRollAnimation = useCallback(
-    (aura, totalMs, isPreview = false) => {
+    (aura, totalMs, isPreview = false, luckMult = 1, inventory = {}) => {
       clearRollTimers();
       const doZoom = !autoFastRef.current;
       const buildMs = Math.max(totalMs - SNAP_OUT_MS - FINISH_BUFFER_MS, 600);
@@ -1615,14 +1848,12 @@ export default function App() {
       }
 
       const startedAt = Date.now();
+      let lastAnimAuraId = null;
 
       const tick = () => {
         const elapsed = Date.now() - startedAt;
         if (elapsed >= cycleMs) {
-          // hold on whatever tease is currently showing through the peak zoom —
-          // the true result is only revealed once we snap back out
           climaxTimeoutRef.current = setTimeout(() => {
-            // peak reached — snap back out instantly
             if (doZoom) {
               setZoomDuration(SNAP_OUT_MS);
               setZoomed(false);
@@ -1637,9 +1868,11 @@ export default function App() {
           return;
         }
         const progress = elapsed / cycleMs;
-        const eased = Math.pow(progress, 2.1); // quadratic-ish deceleration, like a slowing wheel
+        const eased = Math.pow(progress, 2.1);
         const delay = MIN_STEP_MS + (MAX_STEP_MS - MIN_STEP_MS) * eased;
-        const r = AURAS[Math.floor(Math.random() * AURAS.length)];
+        let r = pickAnimAura(luckMult, inventory);
+        if (r.id === lastAnimAuraId) r = pickAnimAura(luckMult, inventory);
+        lastAnimAuraId = r.id;
         setRevealText(r.name);
         setRevealAuraId(r.id);
         playTick("tick");
@@ -1679,6 +1912,7 @@ export default function App() {
         d.inventory,
         mutBoost * boostMutMult
       );
+      const effectiveLuckMult = (isLucky ? LUCKY_MULTIPLIER : 1) * luckMult * boostLuckMult;
       currentRollRef.current = { aura, isLucky };
       setCurrentRollLucky(isLucky);
       if (!autoFastRef.current) setView("roll");
@@ -1687,7 +1921,7 @@ export default function App() {
       const effectiveMs = speedBoost
         ? Math.max(400, Math.round(totalMs / speedBoost.mult))
         : totalMs;
-      runRollAnimation(aura, effectiveMs);
+      runRollAnimation(aura, effectiveMs, false, effectiveLuckMult, d.inventory ?? {});
     },
     [runRollAnimation]
   );
@@ -1733,15 +1967,23 @@ export default function App() {
     const newly = ACHIEVEMENTS_DEF.filter((a) => !data.achievementsUnlocked.includes(a.id) && a.check(data));
     if (newly.length > 0) {
       const aetherReward = newly.reduce((sum, a) => sum + (ACHIEVEMENT_AETHER[a.id] ?? 0), 0);
-      setData((prev) => ({
-        ...prev,
-        achievementsUnlocked: [...prev.achievementsUnlocked, ...newly.map((a) => a.id)],
-        aether: (prev.aether ?? 0) + aetherReward,
-        totalAetherEarned: (prev.totalAetherEarned ?? 0) + aetherReward,
-      }));
-      setToast({ ...newly[0], aetherReward });
+      const itemRewards = newly.flatMap((a) => a.itemReward ?? []);
+      setData((prev) => {
+        const nextItemInventory = { ...(prev.itemInventory ?? {}) };
+        itemRewards.forEach(({ itemId, qty }) => {
+          nextItemInventory[itemId] = (nextItemInventory[itemId] ?? 0) + qty;
+        });
+        return {
+          ...prev,
+          achievementsUnlocked: [...prev.achievementsUnlocked, ...newly.map((a) => a.id)],
+          aether: (prev.aether ?? 0) + aetherReward,
+          totalAetherEarned: (prev.totalAetherEarned ?? 0) + aetherReward,
+          itemInventory: nextItemInventory,
+        };
+      });
+      setToast({ ...newly[0], aetherReward, itemReward: newly[0].itemReward ?? [] });
     }
-  }, [data.totalRolls, data.inventory, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data.totalRolls, data.inventory, data.totalAetherEarned, data.totalAetherSpent, data.playSeconds, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* the toast's own dismiss timer — independent of the effect above, so a
      roll landing moments later (which re-runs that effect for unrelated
@@ -2018,12 +2260,12 @@ export default function App() {
           width: 100%;
           border: 2px solid var(--ink);
           border-radius: 32px;
-          min-height: 340px;
-          max-height: 50vh;
+          min-height: 380px;
+          max-height: 54vh;
           display: flex;
           flex-direction: column;
           overflow: hidden;
-          margin-bottom: 16px;
+          margin-bottom: 12px;
           background: var(--bg);
         }
         .ar-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
@@ -2053,7 +2295,7 @@ export default function App() {
         @keyframes ar-text-pop { 0% { transform: scale(0.85); } 55% { transform: scale(1.08); } 100% { transform: scale(1); } }
         .ar-reveal-chance { font-size: 13px; font-weight: 500; color: var(--ink-soft); font-feature-settings: "tnum" 1; }
 
-        .ar-action-row { display: flex; gap: 10px; width: 100%; margin-bottom: 10px; }
+        .ar-action-row { display: flex; gap: 10px; width: 100%; margin-bottom: 6px; }
         .ar-roll-btn {
           position: relative;
           overflow: hidden;
@@ -2112,7 +2354,7 @@ export default function App() {
         .ar-fast-btn.locked { border-style: dashed; color: var(--ink-soft); }
         .ar-fast-btn.on { background: var(--ink); color: #fff; }
         .ar-fast-btn.on:disabled { opacity: 1; }
-        .ar-roll-hint { font-size: 12px; color: var(--ink-soft); margin-bottom: 18px; text-align: center; }
+        .ar-roll-hint { font-size: 12px; color: var(--ink-soft); margin-bottom: 8px; text-align: center; }
 
         .ar-inventory-btn {
           width: 100%;
@@ -2167,16 +2409,28 @@ export default function App() {
 
         .ar-ach-row { padding: 13px 14px; border-bottom: 1px solid var(--line); }
         .ar-ach-row:last-child { border-bottom: none; }
+        .ar-ach-row.locked { opacity: 0.85; }
+        .ar-ach-row.locked .ar-ach-name { color: var(--ink-soft); letter-spacing: 2px; }
         .ar-ach-top { display: flex; align-items: center; gap: 10px; }
+        .ar-ach-rewards {
+          display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+          margin: 5px 0 0 30px;
+        }
         .ar-ach-reward {
           display: inline-flex; align-items: center; gap: 4px;
-          margin: 5px 0 0 30px;
           font-size: 12px; font-weight: 700;
           color: var(--ink-soft);
           font-feature-settings: "tnum" 1;
         }
         .ar-ach-reward::before { content: "+"; }
         .ar-ach-reward.done { color: var(--ink); opacity: 0.45; }
+        .ar-ach-reward-item {
+          display: inline-flex; align-items: center; gap: 4px;
+          font-size: 12px; font-weight: 700;
+          color: var(--ink-soft);
+          font-feature-settings: "tnum" 1;
+        }
+        .ar-ach-reward-item.done { color: var(--ink); opacity: 0.45; }
         .ar-ach-name { font-size: 14px; font-weight: 600; flex: 1; }
         .ar-ach-desc { font-size: 12px; color: var(--ink-soft); margin: 3px 0 0 26px; }
         .ar-bar-track { height: 4px; background: var(--fill); border-radius: 2px; overflow: hidden; margin: 8px 0 0 26px; }
@@ -2845,25 +3099,38 @@ export default function App() {
                 <PanelHead title="Achievements" onClose={() => setView("roll")} />
                 <div className="ar-panel-scroll">
                   <div className="ar-group">
-                    {ACHIEVEMENTS_DEF.map((a) => {
+                    {[...ACHIEVEMENTS_DEF.filter((a) => isAchievementRevealed(a, data)),
+                      ...ACHIEVEMENTS_DEF.filter((a) => !isAchievementRevealed(a, data))].map((a) => {
                       const done = data.achievementsUnlocked.includes(a.id);
+                      const revealed = isAchievementRevealed(a, data);
                       const progress = Math.min(a.metric(data), a.goal);
                       const reward = ACHIEVEMENT_AETHER[a.id] ?? 0;
+                      const itemRewards = a.itemReward ?? [];
                       return (
-                        <div className="ar-ach-row" key={a.id}>
+                        <div className={`ar-ach-row ${!revealed ? "locked" : ""}`} key={a.id}>
                           <div className="ar-ach-top">
                             {done ? <CheckCircle2 size={20} color="#1c1c1e" /> : <Circle size={20} color="#D1D1D6" />}
-                            <span className="ar-ach-name">{a.name}</span>
-                            <span className="ar-row-trail">{progress}/{a.goal}</span>
+                            <span className="ar-ach-name">{revealed ? a.name : "???"}</span>
+                            {revealed && <span className="ar-row-trail">{progress}/{a.goal}</span>}
                           </div>
-                          <div className="ar-ach-desc">{a.desc}</div>
-                          {reward > 0 && (
-                            <div className={`ar-ach-reward ${done ? "done" : ""}`}>
-                              <DropletIcon size={10} style={{ flexShrink: 0 }} />
-                              {reward.toLocaleString()}
+                          {revealed && <div className="ar-ach-desc">{a.desc}</div>}
+                          {(reward > 0 || itemRewards.length > 0) && (
+                            <div className="ar-ach-rewards">
+                              {reward > 0 && (
+                                <span className={`ar-ach-reward ${done ? "done" : ""}`}>
+                                  <DropletIcon size={10} style={{ flexShrink: 0 }} />
+                                  {reward.toLocaleString()}
+                                </span>
+                              )}
+                              {itemRewards.map((ir) => (
+                                <span className={`ar-ach-reward-item ${done ? "done" : ""}`} key={ir.itemId}>
+                                  <ItemIcon id={ir.itemId} size={12} />
+                                  ×{ir.qty}
+                                </span>
+                              ))}
                             </div>
                           )}
-                          {!done && (
+                          {!done && revealed && (
                             <div className="ar-bar-track">
                               <div className="ar-bar-fill" style={{ width: `${(progress / a.goal) * 100}%` }} />
                             </div>
@@ -3156,10 +3423,19 @@ export default function App() {
           <div>
             <div className="ar-toast-title">ACHIEVEMENT</div>
             <div className="ar-toast-desc">{toast.name}</div>
-            {toast.aetherReward > 0 && (
+            {(toast.aetherReward > 0 || (toast.itemReward ?? []).length > 0) && (
               <div className="ar-toast-aether">
-                +{toast.aetherReward.toLocaleString()}
-                <DropletIcon size={10} style={{display:"inline-block",verticalAlign:"middle",marginLeft:3}} />
+                {toast.aetherReward > 0 && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                    +{toast.aetherReward.toLocaleString()}
+                    <DropletIcon size={10} style={{ display: "inline-block", verticalAlign: "middle" }} />
+                  </span>
+                )}
+                {(toast.itemReward ?? []).map((ir) => (
+                  <span key={ir.itemId} style={{ display: "inline-flex", alignItems: "center", gap: 3, marginLeft: 8 }}>
+                    <ItemIcon id={ir.itemId} size={10} />×{ir.qty}
+                  </span>
+                ))}
               </div>
             )}
           </div>
