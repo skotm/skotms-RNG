@@ -364,10 +364,13 @@ const DISCOVERY_BONUS = [
   { base: 7000,    mutation: 10000   }, // Glorious
   { base: 25000,   mutation: 37000   }, // Transcendent
   { base: 100000,  mutation: 150000  }, // Dimensional
+  { base: 400000,  mutation: 600000  }, // Cosmic
+  { base: 1500000, mutation: 2250000 }, // Eternal
+  { base: 6000000, mutation: 9000000 }, // Primordial
 ];
 
 // Duplicate conversion — Aether per extra pull (capped at 50 per aura)
-const DUPLICATE_BONUS = [0, 2, 8, 30, 100, 350, 1000, 3500, 15000];
+const DUPLICATE_BONUS = [0, 2, 8, 30, 100, 350, 1000, 3500, 15000, 60000, 220000, 850000];
 const DUPLICATE_CAP = 50; // max conversions per aura
 
 // Achievement Aether rewards keyed by achievement id
