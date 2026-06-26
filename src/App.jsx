@@ -530,12 +530,12 @@ const ITEMS = [
   {
     id: "hyper_lucky_die", name: "Hyper Lucky Dice", category: "luck",
     desc: "All odds ×1,000,000 for 1 roll",
-    price: 150000,    mult: 1000000,     rolls: 1,  stackable: true, weight: 2,
+    price: 150000,    mult: 1000000,     rolls: 1,  stackable: true, weight: 1,
   },
   {
     id: "ultra_lucky_die", name: "Ultra Lucky Dice", category: "luck",
     desc: "All odds ×100,000,000 for 1 roll",
-    price: 1500000,   mult: 100000000,   rolls: 1,  stackable: true, weight: 2,
+    price: 1500000,   mult: 100000000,   rolls: 1,  stackable: true, weight: 1,
   },
   // ── Speed ──
   {
