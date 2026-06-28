@@ -165,7 +165,7 @@ Four leaderboards:
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#FFCC00"/></svg> **Exalted** | ![#FFCC00](https://placehold.co/12x12/FFCC00/FFCC00.png) | 1 in 12M – 1 in 92M | 15 |
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#00C7BE"/></svg> **Glorious** | ![#00C7BE](https://placehold.co/12x12/00C7BE/00C7BE.png) | 1 in 120M – 1 in 880M | 12 |
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#FF2D55"/></svg> **Transcendent** | ![#FF2D55](https://placehold.co/12x12/FF2D55/FF2D55.png) | 1 in 1.1B – 1 in 6B | 8 |
-| <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#888"/></svg> **Dimensional** | ![#1C1C1E](https://placehold.co/12x12/FF2D55/1C1C1E.png)| 1 in 9B – 1 in 70B | 6 |
+| <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#888"/></svg> **Dimensional** | ![#000000](https://placehold.co/12x12/FF2D55/000000.png)| 1 in 9B – 1 in 70B | 6 |
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#6E40C9"/></svg> **Cosmic** | ![#6E40C9](https://placehold.co/12x12/6E40C9/6E40C9.png) | 1 in 120B – 1 in 800B | 5 |
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#FF6B00"/></svg> **Eternal** | ![#FF6B00](https://placehold.co/12x12/FF6B00/FF6B00.png) | 1 in 1.5T – 1 in 9T | 4 |
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#FFD700"/></svg> **Primordial** ✦ | ![#FFD700](https://placehold.co/12x12/FFD700/FFD700.png) | 1 in 15T – 1 in 100T | 3 |
@@ -486,7 +486,7 @@ Mutationは常に元オーラよりレアで、インベントリに <kbd>MUTATE
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#FFCC00"/></svg> **Exalted** | ![#FFCC00](https://placehold.co/12x12/FFCC00/FFCC00.png) | 1/1200万 〜 1/9200万 | 15 |
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#00C7BE"/></svg> **Glorious** | ![#00C7BE](https://placehold.co/12x12/00C7BE/00C7BE.png) | 1/1.2億 〜 1/8.8億 | 12 |
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#FF2D55"/></svg> **Transcendent** | ![#FF2D55](https://placehold.co/12x12/FF2D55/FF2D55.png) | 1/11億 〜 1/60億 | 8 |
-| <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#888"/></svg> **Dimensional** | ![#1C1C1E](https://placehold.co/12x12/FF2D55/1C1C1E.png) | 1/90億 〜 1/700億 | 6 |
+| <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#888"/></svg> **Dimensional** | ![#000000](https://placehold.co/12x12/FF2D55/000000.png) | 1/90億 〜 1/700億 | 6 |
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#6E40C9"/></svg> **Cosmic** | ![#6E40C9](https://placehold.co/12x12/6E40C9/6E40C9.png) | 1/1200億 〜 1/8000億 | 5 |
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#FF6B00"/></svg> **Eternal** | ![#FF6B00](https://placehold.co/12x12/FF6B00/FF6B00.png) | 1/1.5兆 〜 1/9兆 | 4 |
 | <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#FFD700"/></svg> **Primordial** ✦ | ![#FFD700](https://placehold.co/12x12/FFD700/FFD700.png) | 1/15兆 〜 1/100兆 | 3 |
