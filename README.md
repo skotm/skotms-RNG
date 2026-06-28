@@ -16,7 +16,7 @@
 
 # skotm's RNG
 
-**Collect auras. Chase the rarest. · オーラを集めろ。最レアを狙え。**
+**Collect auras. Chase the rarest.**
 
 [![Play Now](https://img.shields.io/badge/▶%20Play%20Now-GitHub%20Pages-FFCC00?style=for-the-badge&labelColor=1a1a1a)](https://skotm.github.io/skotms-RNG/)
 
