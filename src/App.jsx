@@ -254,6 +254,35 @@ const AURAS = [
 ];
 
 const colorOf = (aura) => TIERS[aura.tier].color;
+
+// Exalted以上(tier8 Dimensionalの白背景は除く)で、背景がオーラの色に染まっていく対象
+const TINT_BG_TIERS = new Set([5, 6, 7, 9, 10, 11]);
+
+// tier8以降、リアクション(揺れ)を強く・長くする
+function shakeFor(tier) {
+  if (tier <= 2)  return { amp: 1,    duration: 0.6 };
+  if (tier === 3) return { amp: 1.05, duration: 0.62 };
+  if (tier === 4) return { amp: 1.1,  duration: 0.64 };
+  if (tier === 5) return { amp: 1.15, duration: 0.66 };
+  if (tier === 6) return { amp: 1.2,  duration: 0.68 };
+  if (tier === 7) return { amp: 1.25, duration: 0.69 };
+  if (tier === 8) return { amp: 1.3,  duration: 0.7 };
+  if (tier === 9) return { amp: 1.6,  duration: 0.85 };
+  if (tier === 10) return { amp: 2.0, duration: 1.0 };
+  return { amp: 2.5, duration: 1.2 }; // tier 11 Primordial
+}
+function glowFor(tier) {
+  if (tier <= 2)  return { opacityMult: 1,    speed: 2.3,  extent: 72 };
+  if (tier === 3) return { opacityMult: 1.03, speed: 2.2,  extent: 74 };
+  if (tier === 4) return { opacityMult: 1.05, speed: 2.15, extent: 75 };
+  if (tier === 5) return { opacityMult: 1.06, speed: 2.1,  extent: 76 };
+  if (tier === 6) return { opacityMult: 1.08, speed: 2.0,  extent: 77 };
+  if (tier === 7) return { opacityMult: 1.09, speed: 1.95, extent: 77 };
+  if (tier === 8) return { opacityMult: 1.1,  speed: 1.9,  extent: 78 };
+  if (tier === 9) return { opacityMult: 1.25, speed: 1.6,  extent: 84 };
+  if (tier === 10) return { opacityMult: 1.4, speed: 1.3,  extent: 90 };
+  return { opacityMult: 1.55, speed: 1.0, extent: 96 }; // tier 11 Primordial
+}
 const hasTier = (d, tierIdx) => AURAS.some((a) => a.tier === tierIdx && d.inventory[a.id]);
 
 const MUTATION_AURAS = AURAS.filter((a) => a.mutationOf);
@@ -335,7 +364,7 @@ const defaultData = () => ({
   bestAuraId: null,
   inventory: {},
   achievementsUnlocked: [],
-  settings: { sound: true },
+  settings: { sound: true, cutsceneThreshold: 1 },
   playSeconds: 0,
   luckyCounter: 0,
   aether: 0,
@@ -716,30 +745,43 @@ function formatHiddenChance(chance) {
 
 function effectFor(tier) {
   if (tier <= 2) return { rings: 0, duration: 450 };
-  if (tier === 3) return { rings: 1, duration: 800 };
-  if (tier === 4) return { rings: 2, duration: 1100 };
-  if (tier === 5) return { rings: 2, duration: 1300 };
-  if (tier === 6) return { rings: 3, duration: 1600 };
-  if (tier === 7) return { rings: 4, duration: 1900 };
-  return { rings: 5, duration: 2300 }; // Dimensional, the apex
+  if (tier === 3) return { rings: 2, duration: 900 };
+  if (tier === 4) return { rings: 3, duration: 1200 };
+  if (tier === 5) return { rings: 3, duration: 1500 };
+  if (tier === 6) return { rings: 4, duration: 1800 };
+  if (tier === 7) return { rings: 4, duration: 2100 };
+  if (tier === 8) return { rings: 5, duration: 2300 };
+  if (tier === 9) return { rings: 6, duration: 2700 }; // Cosmic
+  if (tier === 10) return { rings: 7, duration: 3100 }; // Eternal
+  return { rings: 9, duration: 3800 }; // Primordial, the apex
 }
 
 /* the pre-reveal "confirm" cutscene for sufficiently rare pulls — a jagged
    4-point sparkle, a 5-point star, or a jagged 6-point sparkle, depending
    on how rare the result is */
-function cutsceneTypeFor(chance) {
-  if (chance >= 10000000000) return "six"; // Cosmic以上
-  if (chance >= 1000000000)  return "six";
-  if (chance >= 100000000)   return "star";
-  if (chance >= 10000)       return "four";
+function cutsceneTypeFor(chance, tier) {
+  if (tier >= 11) return "singularity"; // Primordial
+  if (tier === 10) return "eclipse";    // Eternal
+  if (tier === 9)  return "quasar";     // Cosmic
+  if (tier === 8)  return "nova";       // Dimensional
+  if (chance >= 1000000000) return "six"; // Transcendent
+  if (chance >= 100000000)  return "star";
+  if (chance >= 10000)      return "four";
   return null;
 }
 
 const CUTSCENE_DURATIONS = {
-  four: { black: 220, spin: 1700, flash: 280 },
-  star: { black: 260, spin: 2200, flash: 320 },
-  six: { black: 300, spin: 2800, flash: 380 },
+  four:        { black: 220, spin: 1700, flash: 500, pulses: 1 },
+  star:        { black: 260, spin: 2200, flash: 320, pulses: 1 },
+  six:         { black: 300, spin: 2800, flash: 380, pulses: 1 },
+  nova:        { black: 340, spin: 3400, flash: 460, pulses: 2 },
+  quasar:      { black: 380, spin: 4000, flash: 540, pulses: 2 },
+  eclipse:     { black: 420, spin: 4600, flash: 620, pulses: 3 },
+  singularity: { black: 460, spin: 5400, flash: 700, pulses: 3 },
 };
+
+// type別のスパークルの頂点数(珍しいほど尖りが増える)
+const SPARKLE_POINTS = { four: 4, six: 6, nova: 7, quasar: 8, eclipse: 10, singularity: 12 };
 
 /* an N-pointed concave burst/sparkle shape — each point is a sharp tip,
    joined to the next by a curve whose control point sits at the center,
@@ -812,8 +854,11 @@ function AuraVisual({ aura, size = 100 }) {
   const isChromatic = tier === 8;
   const isMutation = !!aura.mutationOf;
   const color = isChromatic ? "#FF375F" : colorOf(aura);
-  const particleCount = tier <= 1 ? 4 : tier <= 3 ? 6 : tier <= 5 ? 9 : tier === 6 ? 12 : 16;
+  const particleCount =
+    tier <= 1 ? 4 : tier <= 3 ? 6 : tier <= 5 ? 9 : tier === 6 ? 12 : tier === 7 ? 16 :
+    tier === 8 ? 20 : tier === 9 ? 26 : tier === 10 ? 34 : 44;
   const ringCount = tier <= 1 ? 0 : tier <= 3 ? 1 : tier <= 5 ? 2 : 3;
+  const glow = glowFor(tier);
 
   const particles = useMemo(
     () =>
@@ -828,7 +873,13 @@ function AuraVisual({ aura, size = 100 }) {
   );
 
   return (
-    <div className={`aura-visual ${isChromatic ? "aura-chromatic" : ""} ${isMutation ? "aura-mutated" : ""}`} style={{ width: size, height: size, "--aura-color": color }}>
+    <div
+      className={`aura-visual ${isChromatic ? "aura-chromatic" : ""} ${isMutation ? "aura-mutated" : ""}`}
+      style={{
+        width: size, height: size, "--aura-color": color,
+        "--glow-opacity-mult": glow.opacityMult, "--glow-speed": `${glow.speed}s`, "--glow-extent": `${glow.extent}%`,
+      }}
+    >
       <div className="aura-glow" />
       {Array.from({ length: ringCount }).map((_, i) => (
         <div key={i} className={`aura-ring aura-ring-${i}`} />
@@ -1050,10 +1101,30 @@ function UsernameScreen({ onDone }) {
   const [name, setName] = useState("");
   const [shake, setShake] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubmit = () => {
+  const triggerShake = () => { setShake(true); setTimeout(() => setShake(false), 500); };
+
+  const handleSubmit = async () => {
+    if (checking) return;
     const trimmed = name.trim();
-    if (!trimmed) { setShake(true); setTimeout(() => setShake(false), 500); return; }
+    if (!trimmed) { setErrorMsg("Name cannot be empty"); triggerShake(); return; }
+    setErrorMsg("");
+    setChecking(true);
+    try {
+      const taken = await fbIsNameTaken(trimmed, getOrCreateUUID());
+      if (taken) {
+        setErrorMsg("This name is already taken — try another one");
+        triggerShake();
+        setChecking(false);
+        return;
+      }
+    } catch (e) {
+      // フェイルオープン: サーバーに繋がらない場合はチェックをスキップして進行させる
+      console.warn("Username uniqueness check failed:", e);
+    }
+    setChecking(false);
     localStorage.setItem("aura-roll:playerName", trimmed);
     onDone(trimmed);
   };
@@ -1177,13 +1248,13 @@ function UsernameScreen({ onDone }) {
               />
               <span className="un-count">{name.length}/16</span>
             </div>
-            {shake && <div className="un-error">Name cannot be empty</div>}
+            {errorMsg && <div className="un-error">{errorMsg}</div>}
           </div>
         </div>
 
         {/* ── ボタン ── */}
-        <button className="un-btn" onClick={handleSubmit} disabled={!name.trim()}>
-          Start Playing
+        <button className="un-btn" onClick={handleSubmit} disabled={!name.trim() || checking}>
+          {checking ? "Checking…" : "Start Playing"}
         </button>
         <div className="un-hint">or press Enter</div>
       </div>
@@ -1194,10 +1265,24 @@ function UsernameScreen({ onDone }) {
 function PlayerNameEditor({ playerName, setPlayerName }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(playerName);
+  const [checking, setChecking] = useState(false);
+  const [err, setErr] = useState("");
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (checking) return;
     const trimmed = val.trim();
     if (!trimmed) return;
+    setErr("");
+    if (trimmed === playerName) { setEditing(false); return; } // 変更なしならチェック不要
+    setChecking(true);
+    try {
+      const taken = await fbIsNameTaken(trimmed, getOrCreateUUID());
+      if (taken) { setErr("このユーザーネームは既に使われています"); setChecking(false); return; }
+    } catch (e) {
+      // フェイルオープン: サーバーに繋がらない場合はチェックをスキップして進行させる
+      console.warn("Username uniqueness check failed:", e);
+    }
+    setChecking(false);
     localStorage.setItem("aura-roll:playerName", trimmed);
     setPlayerName(trimmed);
     setEditing(false);
@@ -1205,24 +1290,65 @@ function PlayerNameEditor({ playerName, setPlayerName }) {
 
   if (!editing) {
     return (
-      <button className="ar-name-edit-btn" onClick={() => { setVal(playerName); setEditing(true); }}>
+      <button className="ar-name-edit-btn" onClick={() => { setVal(playerName); setErr(""); setEditing(true); }}>
         Edit
       </button>
     );
   }
   return (
-    <div className="ar-name-edit-row">
+    <div className="ar-name-edit-row" style={{flexDirection:"column", alignItems:"flex-start", gap:6}}>
+      <div style={{display:"flex", gap:6, alignItems:"center"}}>
+        <input
+          className="ar-rank-name-input"
+          value={val}
+          onChange={e => { setVal(e.target.value.slice(0, 16)); setErr(""); }}
+          onKeyDown={e => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
+          maxLength={16}
+          autoFocus
+          style={{fontSize:13, padding:"6px 10px"}}
+        />
+        <button className="ar-rank-submit-btn" onClick={handleSave} disabled={!val.trim() || checking} style={{padding:"6px 12px",fontSize:12}}>
+          {checking ? "確認中…" : "Save"}
+        </button>
+        <button className="ar-name-cancel-btn" onClick={() => setEditing(false)}>✕</button>
+      </div>
+      {err && <div style={{color:"#FF3B30", fontSize:12, fontWeight:600}}>{err}</div>}
+    </div>
+  );
+}
+
+/* 「1 in 〇〇」未満なら確定演出をスキップする閾値の入力 */
+function CutsceneThresholdEditor({ value, onChange }) {
+  const [val, setVal] = useState(String(value));
+
+  useEffect(() => { setVal(String(value)); }, [value]);
+
+  const commit = () => {
+    const n = parseInt(val, 10);
+    if (Number.isFinite(n) && n >= 1) {
+      onChange(n);
+      setVal(String(n));
+    } else {
+      setVal(String(value)); // 不正な値は元に戻す
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span style={{ fontSize: 13, color: "var(--ink-soft)" }}>1 in</span>
       <input
-        className="ar-rank-name-input"
+        type="number"
+        min={1}
         value={val}
-        onChange={e => setVal(e.target.value.slice(0, 16))}
-        onKeyDown={e => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
-        maxLength={16}
-        autoFocus
-        style={{fontSize:13, padding:"6px 10px"}}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") { commit(); e.target.blur(); } }}
+        style={{
+          width: 90, textAlign: "right", fontSize: 13, padding: "6px 8px",
+          border: "1.5px solid var(--line)", borderRadius: 8,
+          fontFamily: "inherit", color: "var(--ink)", background: "var(--fill)",
+        }}
       />
-      <button className="ar-rank-submit-btn" onClick={handleSave} disabled={!val.trim()} style={{padding:"6px 12px",fontSize:12}}>Save</button>
-      <button className="ar-name-cancel-btn" onClick={() => setEditing(false)}>✕</button>
     </div>
   );
 }
@@ -1259,6 +1385,7 @@ function MiniAuraEffect({ aura }) {
   const isChromatic = tier === 8;
   const color = isChromatic ? "#FF375F" : colorOf(aura);
   const ringCount = tier <= 1 ? 0 : tier <= 3 ? 1 : tier <= 5 ? 2 : 3;
+  const glow = glowFor(tier);
   const particles = useMemo(() =>
     Array.from({ length: tier <= 1 ? 3 : tier <= 3 ? 4 : 6 }).map((_, i) => ({
       id: i,
@@ -1270,7 +1397,10 @@ function MiniAuraEffect({ aura }) {
   if (!aura) return null;
   return (
     <div className={`aura-visual ${isChromatic ? "aura-chromatic" : ""} ${aura.mutationOf ? "aura-mutated" : ""}`}
-      style={{ width: size, height: size, "--aura-color": color, flexShrink: 0 }}>
+      style={{
+        width: size, height: size, "--aura-color": color, flexShrink: 0,
+        "--glow-opacity-mult": glow.opacityMult, "--glow-speed": `${glow.speed}s`, "--glow-extent": `${glow.extent}%`,
+      }}>
       <div className="aura-glow" />
       {Array.from({ length: ringCount }).map((_, i) => (
         <div key={i} className={`aura-ring aura-ring-${i}`} />
@@ -1348,6 +1478,19 @@ async function fbGetOne(playerName) {
   const res = await fetch(`${FB_URL}/rankings/${encodeURIComponent(playerName)}.json`);
   if (!res.ok) return null;
   return res.json();
+}
+
+// ユーザーネームの重複チェック — 自分以外のuuidで同名(大文字小文字無視)が
+// 既に使われていないかをランキング全件から確認する
+async function fbIsNameTaken(name, myUUID) {
+  const res = await fetch(`${FB_URL}/rankings.json`);
+  if (!res.ok) throw new Error(`Firebase GET failed: ${res.status}`);
+  const raw = await res.json();
+  if (!raw) return false;
+  const lower = name.trim().toLowerCase();
+  return Object.values(raw).some(
+    (r) => r.uuid !== myUUID && (r.playerName ?? "").trim().toLowerCase() === lower
+  );
 }
 
 // UUID — 初回生成してlocalStorageに永続化
@@ -1577,6 +1720,7 @@ export default function App() {
   const [burst, setBurst] = useState(null); // { color, rings, key }
   const [cutscene, setCutscene] = useState(null); // { type: 'four'|'star'|'six', color, stage, key }
   const [shaking, setShaking] = useState(false);
+  const [shakeIntensity, setShakeIntensity] = useState({ amp: 1, duration: 0.6 });
   const [popKey, setPopKey] = useState(0);
   const [currentRollLucky, setCurrentRollLucky] = useState(false);
   const [headerBadgeAuraId, setHeaderBadgeAuraId] = useState(null);
@@ -1824,9 +1968,12 @@ export default function App() {
       };
 
       const runCutscene = (ctype) => {
+        // 他の画面を見ている間に(自動ロールなどで)演出が発生したら、見逃さないよう
+        // ロール画面に強制的に切り替える
+        setView("roll");
         const dur = CUTSCENE_DURATIONS[ctype];
         const color = colorOf(aura);
-        setCutscene({ type: ctype, color, tier: aura.tier, stage: "black", key: Math.random() }); // silent — no click here
+        setCutscene({ type: ctype, color, tier: aura.tier, stage: "black", key: Math.random(), pulses: dur.pulses }); // silent — no click here
         cutsceneTimeoutRef.current = setTimeout(() => {
           setCutscene((c) => c && { ...c, stage: "spin" });
           cutsceneTimeoutRef.current = setTimeout(() => {
@@ -1835,8 +1982,10 @@ export default function App() {
             // clears, the result is already sitting there, and the shake lands
             // right as it becomes visible
             revealNow();
+            const shake = shakeFor(aura.tier);
+            setShakeIntensity(shake);
             setShaking(true);
-            shakeTimeoutRef.current = setTimeout(() => setShaking(false), 620);
+            shakeTimeoutRef.current = setTimeout(() => setShaking(false), shake.duration * 1000);
             cutsceneTimeoutRef.current = setTimeout(() => {
               setCutscene(null);
             }, dur.flash);
@@ -1861,7 +2010,9 @@ export default function App() {
               setZoomDuration(SNAP_OUT_MS);
               setZoomed(false);
             }
-            const ctype = cutsceneTypeFor(aura.chance);
+            const ctype = aura.chance < (dataRef.current.settings?.cutsceneThreshold ?? 1)
+              ? null // 設定した閾値未満(=それより珍しくない)なら演出をスキップ
+              : cutsceneTypeFor(aura.chance, aura.tier);
             if (ctype) {
               runCutscene(ctype);
             } else {
@@ -2133,7 +2284,7 @@ export default function App() {
           display: flex; align-items: center; justify-content: center;
           pointer-events: none;
         }
-        .ar-cutscene-shape { width: 38vmin; height: 38vmin; max-width: 220px; max-height: 220px; opacity: 0; transform: scale(0.5); transition: opacity .2s ease, transform .2s ease; }
+        .ar-cutscene-shape { position: relative; width: 38vmin; height: 38vmin; max-width: 220px; max-height: 220px; opacity: 0; transform: scale(0.5); transition: opacity .2s ease, transform .2s ease; }
         .ar-cutscene-spin .ar-cutscene-shape {
           opacity: 1;
           animation: ar-cs-spin var(--spin-ms) cubic-bezier(0.92, 0, 1, 0.55) forwards;
@@ -2144,50 +2295,119 @@ export default function App() {
           transform: scale(1.35);
           transition: opacity .15s ease, transform .15s ease;
         }
+        /* Exalted以上: 端にオーラの色のモヤがかかり、時間が経つにつれ濃くなっていく。
+           グラデーションの「形」は固定したまま不透明度だけを上げるので、中心へは広がらず、
+           かつ全ブラウザで確実に滑らかに補間される */
+        .ar-cutscene-tint {
+          position: absolute; inset: 0; pointer-events: none;
+          background: radial-gradient(circle, transparent 38%, var(--cs-color) 100%);
+          opacity: 0;
+          animation: ar-cs-tint-haze var(--tint-ms, 1000ms) ease-in forwards;
+        }
+        @keyframes ar-cs-tint-haze {
+          0%   { opacity: 0; }
+          100% { opacity: 0.92; }
+        }
+        /* 縁が光って晴れるリプレイ — フラッシュに重ねて、画面の縁からオーラの色のグローが
+           広がりながら消えていくことで「縁から晴れる」感覚を出す */
+        .ar-cutscene-edge {
+          position: absolute; inset: 0; pointer-events: none; opacity: 0;
+          animation: ar-cs-edge-reveal var(--edge-ms, 380ms) ease forwards;
+        }
+        @keyframes ar-cs-edge-reveal {
+          0%   { opacity: 0;   box-shadow: inset 0 0 0 0 var(--cs-color); }
+          35%  { opacity: 0.9; box-shadow: inset 0 0 70px 25px var(--cs-color); }
+          100% { opacity: 0;   box-shadow: inset 0 0 160px 70px var(--cs-color); }
+        }
+        /* Legendary専用: フラッシュの瞬間に画面が割れるエフェクト */
+        .ar-cutscene-crack {
+          position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+        }
+        .ar-cutscene-crack path {
+          fill: none; stroke: #fff; stroke-width: 0.6; vector-effect: non-scaling-stroke;
+          stroke-dasharray: 200; stroke-dashoffset: 200;
+          filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 6px var(--cs-color));
+          animation: ar-cs-crack-draw var(--edge-ms, 450ms) ease forwards;
+        }
+        @keyframes ar-cs-crack-draw { 0% { stroke-dashoffset: 200; opacity: 1; } 55% { stroke-dashoffset: 0; opacity: 1; } 80% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
         @keyframes ar-cs-spin {
           from { transform: scale(1) rotate(0deg); }
           to { transform: scale(1.18) rotate(1080deg); }
         }
         .ar-cutscene-sparkle, .ar-cutscene-star { width: 100%; height: 100%; filter: drop-shadow(0 0 18px var(--cs-color)); }
         .ar-cutscene-flash {
-          animation: ar-cs-flash-bg 0.3s ease forwards;
+          animation-name: ar-cs-flash-bg;
+          animation-timing-function: ease;
+          animation-fill-mode: forwards;
         }
+        .ar-cutscene-flash.ar-cutscene-flash-x2 { animation-name: ar-cs-flash-bg-x2; }
+        .ar-cutscene-flash.ar-cutscene-flash-x3 { animation-name: ar-cs-flash-bg-x3; }
 @keyframes ar-cs-flash-bg { 0% { background: #000; } 65% { background: #fff; } 100% { background: #fff; opacity: 0; } }
+@keyframes ar-cs-flash-bg-x2 {
+  0%   { background: #000; }
+  20%  { background: #fff; }
+  40%  { background: #000; }
+  60%  { background: #fff; }
+  100% { background: #fff; opacity: 0; }
+}
+@keyframes ar-cs-flash-bg-x3 {
+  0%   { background: #000; }
+  14%  { background: #fff; }
+  28%  { background: #000; }
+  42%  { background: #fff; }
+  56%  { background: #000; }
+  70%  { background: #fff; }
+  100% { background: #fff; opacity: 0; }
+}
         @keyframes ar-cs-flash-bg-white { 0% { background: #fff; } 65% { background: #fff; } 100% { background: #fff; opacity: 0; } }
+@keyframes ar-cs-flash-bg-white-x2 {
+  0%   { background: #fff; }
+  20%  { background: #ddd; }
+  40%  { background: #fff; }
+  60%  { background: #ddd; }
+  100% { background: #fff; opacity: 0; }
+}
         .ar-cutscene.ar-cutscene-light { --cs-bg: #fff; --cs-vignette: radial-gradient(circle at 50% 38%, rgba(0,0,0,0) 20%, rgba(200,200,220,0.5) 74%); }
-        .ar-cutscene.ar-cutscene-light.ar-cutscene-flash { animation: ar-cs-flash-bg-white 0.3s ease forwards; }
-        .ar-stage.ar-shake { animation: ar-cs-shake 0.6s ease-out; }
+        .ar-cutscene.ar-cutscene-light.ar-cutscene-flash {
+          animation-name: ar-cs-flash-bg-white;
+          animation-timing-function: ease;
+          animation-fill-mode: forwards;
+        }
+        .ar-cutscene.ar-cutscene-light.ar-cutscene-flash.ar-cutscene-flash-x2 { animation-name: ar-cs-flash-bg-white-x2; }
+        .ar-stage.ar-shake { animation-name: ar-cs-shake; animation-timing-function: ease-out; }
         @keyframes ar-cs-shake {
           0% { transform: translate(0, 0); }
-          8% { transform: translate(-9px, 5px); }
-          16% { transform: translate(9px, -5px); }
-          24% { transform: translate(-8px, 6px); }
-          32% { transform: translate(8px, -6px); }
-          42% { transform: translate(-6px, 4px); }
-          52% { transform: translate(6px, -4px); }
-          62% { transform: translate(-4px, 3px); }
-          72% { transform: translate(4px, -3px); }
-          82% { transform: translate(-2px, 1px); }
-          91% { transform: translate(2px, -1px); }
+          8% { transform: translate(calc(-9px * var(--shake-amp, 1)), calc(5px * var(--shake-amp, 1))); }
+          16% { transform: translate(calc(9px * var(--shake-amp, 1)), calc(-5px * var(--shake-amp, 1))); }
+          24% { transform: translate(calc(-8px * var(--shake-amp, 1)), calc(6px * var(--shake-amp, 1))); }
+          32% { transform: translate(calc(8px * var(--shake-amp, 1)), calc(-6px * var(--shake-amp, 1))); }
+          42% { transform: translate(calc(-6px * var(--shake-amp, 1)), calc(4px * var(--shake-amp, 1))); }
+          52% { transform: translate(calc(6px * var(--shake-amp, 1)), calc(-4px * var(--shake-amp, 1))); }
+          62% { transform: translate(calc(-4px * var(--shake-amp, 1)), calc(3px * var(--shake-amp, 1))); }
+          72% { transform: translate(calc(4px * var(--shake-amp, 1)), calc(-3px * var(--shake-amp, 1))); }
+          82% { transform: translate(calc(-2px * var(--shake-amp, 1)), calc(1px * var(--shake-amp, 1))); }
+          91% { transform: translate(calc(2px * var(--shake-amp, 1)), calc(-1px * var(--shake-amp, 1))); }
           100% { transform: translate(0, 0); }
         }
 
         .ar-header { max-width: 460px; margin: 0 auto; padding: 24px 20px 0; display: flex; align-items: flex-start; justify-content: space-between; }
-        .ar-header-left { display: flex; flex-direction: column; gap: 8px; }
-        .ar-badge-row { display: flex; align-items: center; gap: 9px; }
-        .ar-badge-text { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
-        .ar-badge { width: 56px; height: 56px; border-radius: 18px; border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .ar-badge-chance { font-size: 13px; font-weight: 500; color: var(--ink-soft); font-feature-settings: "tnum" 1; }
+        .ar-header-left { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+        .ar-badge-row { display: flex; align-items: center; gap: 9px; min-width: 0; }
+        .ar-badge-text { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; max-width: 100%; }
+        .ar-badge { width: 56px; height: 56px; border-radius: 18px; border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+        .ar-badge-chance { font-size: 13px; font-weight: 500; color: var(--ink-soft); font-feature-settings: "tnum" 1; max-width: 100%; overflow-wrap: break-word; word-break: break-all; }
 
         .aura-visual { position: relative; border-radius: 50%; flex: 0 0 auto; }
         .aura-glow {
           position: absolute; inset: 6%;
           border-radius: 50%;
-          background: radial-gradient(circle, var(--aura-color) 0%, transparent 72%);
-          opacity: 0.55;
-          animation: aura-pulse 2.3s ease-in-out infinite;
+          background: radial-gradient(circle, var(--aura-color) 0%, transparent var(--glow-extent, 72%));
+          animation: aura-pulse var(--glow-speed, 2.3s) ease-in-out infinite;
         }
-        @keyframes aura-pulse { 0%, 100% { transform: scale(0.9); opacity: 0.4; } 50% { transform: scale(1.08); opacity: 0.7; } }
+        @keyframes aura-pulse {
+          0%, 100% { transform: scale(0.9); opacity: calc(var(--glow-opacity-mult, 1) * 0.4); }
+          50% { transform: scale(1.08); opacity: calc(var(--glow-opacity-mult, 1) * 0.7); }
+        }
         .aura-ring { position: absolute; border-radius: 50%; border: 2px solid var(--aura-color); opacity: 0.5; }
         .aura-ring-0 { inset: 0; animation: aura-spin 7s linear infinite; }
         .aura-ring-1 { inset: 12%; opacity: 0.38; animation: aura-spin-rev 5s linear infinite; }
@@ -2485,6 +2705,7 @@ export default function App() {
         /* ── Header right column (nav + aether badge) ── */
         .ar-header-right {
           display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+          min-width: 0; max-width: 58%; flex-shrink: 1;
         }
 
 
@@ -2703,7 +2924,7 @@ export default function App() {
         .ar-active-boosts {
           display: flex; flex-direction: row; gap: 4px;
           flex-wrap: wrap; justify-content: flex-end;
-          margin-top: 0;
+          margin-top: 0; max-width: 100%;
         }
         .ar-active-boost-chip {
           display: flex; align-items: center; gap: 3px;
@@ -2798,9 +3019,10 @@ export default function App() {
           font-feature-settings: "tnum" 1;
           letter-spacing: -0.01em;
           color: var(--ink);
+          max-width: 100%;
         }
         .ar-aether-icon { display: block; flex: 0 0 auto; color: var(--ink); }
-        .ar-aether-amount { color: var(--ink); }
+        .ar-aether-amount { color: var(--ink); overflow-wrap: break-word; word-break: break-all; }
 
         /* ── Aether popup (floats above roll button) ── */
         .ar-aether-popup {
@@ -2838,6 +3060,7 @@ export default function App() {
           .ar-stage, .ar-vignette-fixed { transition: none !important; }
           .ar-cutscene-shape { transition: none !important; animation: none !important; opacity: 1 !important; transform: scale(1) !important; }
           .ar-cutscene-flash { animation: none !important; background: #fff !important; }
+          .ar-cutscene-edge, .ar-cutscene-crack path, .ar-cutscene-tint { animation: none !important; opacity: 0 !important; }
           .ar-stage.ar-shake { animation: none !important; }
           .ar-aether-popup { animation: none !important; opacity: 1 !important; }
         }
@@ -2848,26 +3071,53 @@ export default function App() {
         style={{ opacity: zoomed ? 1 : 0, backdropFilter: zoomed ? "blur(9px)" : "blur(0px)", transitionProperty: "opacity, backdrop-filter", transitionDuration: `${zoomDuration}ms`, transitionTimingFunction: zoomed ? "ease-in" : "ease-out" }}
       />
 
-      {cutscene && (
-        <div className={`ar-cutscene ar-cutscene-${cutscene.stage}${cutscene.tier === 8 ? " ar-cutscene-light" : ""}`} key={cutscene.key}>
+      {cutscene && (() => {
+        const dur = CUTSCENE_DURATIONS[cutscene.type];
+        const isTunnel = TINT_BG_TIERS.has(cutscene.tier);
+        return (
           <div
-            className="ar-cutscene-shape"
-            style={{ "--cs-color": cutscene.color, "--spin-ms": `${CUTSCENE_DURATIONS[cutscene.type].spin}ms` }}
+            className={`ar-cutscene ar-cutscene-${cutscene.stage}${cutscene.tier === 8 ? " ar-cutscene-light" : ""}${cutscene.stage === "flash" && cutscene.pulses > 1 ? ` ar-cutscene-flash-x${cutscene.pulses}` : ""}`}
+            style={{
+              "--cs-color": cutscene.color,
+              "--tint-ms": `${dur.black + dur.spin}ms`,
+              ...(cutscene.stage === "flash" ? { animationDuration: `${dur.flash}ms`, "--edge-ms": `${dur.flash}ms` } : null),
+            }}
+            key={cutscene.key}
           >
-            {cutscene.type === "star" ? (
-              <Star className="ar-cutscene-star" fill={cutscene.color} color={cutscene.color} strokeWidth={1} />
-            ) : (
-              <svg viewBox="0 0 100 100" className="ar-cutscene-sparkle">
-                <path d={sparklePath(cutscene.type === "six" ? 6 : 4)} fill={cutscene.color} />
+            {isTunnel && <div className="ar-cutscene-tint" />}
+            <div
+              className="ar-cutscene-shape"
+              style={{ "--spin-ms": `${dur.spin}ms` }}
+            >
+              {cutscene.type === "star" ? (
+                <Star className="ar-cutscene-star" fill={cutscene.color} color={cutscene.color} strokeWidth={1} />
+              ) : (
+                <svg viewBox="0 0 100 100" className="ar-cutscene-sparkle">
+                  <path d={sparklePath(SPARKLE_POINTS[cutscene.type] ?? 4)} fill={cutscene.color} />
+                </svg>
+              )}
+            </div>
+            {cutscene.stage === "flash" && <div className="ar-cutscene-edge" />}
+            {cutscene.tier === 3 && cutscene.stage === "flash" && (
+              <svg className="ar-cutscene-crack" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path d="M50,0 L46,22 L58,30 L40,48 L55,55 L35,75 L48,82 L42,100" />
+                <path d="M0,40 L25,38 L20,52 L45,50" />
+                <path d="M100,60 L75,58 L80,72 L55,75" />
+                <path d="M20,0 L28,18 L15,28" />
+                <path d="M80,100 L70,82 L85,75" />
               </svg>
             )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div
         className={`ar-stage ${shaking ? "ar-shake" : ""}`}
-        style={{ transform: zoomed ? `scale(${PEAK_SCALE})` : "scale(1)", transitionProperty: "transform", transitionDuration: `${zoomDuration}ms`, transitionTimingFunction: zoomed ? "linear" : "ease-out" }}
+        style={{
+          transform: zoomed ? `scale(${PEAK_SCALE})` : "scale(1)", transitionProperty: "transform", transitionDuration: `${zoomDuration}ms`, transitionTimingFunction: zoomed ? "linear" : "ease-out",
+          "--shake-amp": shakeIntensity.amp,
+          ...(shaking ? { animationDuration: `${shakeIntensity.duration}s` } : null),
+        }}
       >
         <header className="ar-header">
           <div className="ar-header-left">
@@ -3328,6 +3578,16 @@ export default function App() {
                       <button className={`ar-switch ${data.settings.sound ? "on" : ""}`} onClick={() => updateSettings({ sound: !data.settings.sound })}>
                         <span className="ar-switch-knob" />
                       </button>
+                    </div>
+                    <div className="ar-setting-row">
+                      <div>
+                        <div className="ar-setting-label">Skip confirm cutscene</div>
+                        <div className="ar-setting-desc">Only play the reveal animation for pulls at least this rare</div>
+                      </div>
+                      <CutsceneThresholdEditor
+                        value={data.settings.cutsceneThreshold ?? 1}
+                        onChange={(n) => updateSettings({ cutsceneThreshold: n })}
+                      />
                     </div>
                     <div className="ar-setting-row" style={{flexDirection:"column",alignItems:"flex-start",gap:6}}>
                       <div className="ar-setting-label">引き継ぎコード</div>
