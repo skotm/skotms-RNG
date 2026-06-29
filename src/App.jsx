@@ -472,16 +472,44 @@ function calcRollAether(totalRolls, isLucky) {
   return gain;
 }
 
+// 配列にない高tier(将来の拡張・シークレットtierなど)でも安全に値を返す —
+// 既存のカーブ(おおよそ4倍/tier)を外挿することで、配列の更新漏れによる
+// クラッシュを今後恒久的に防ぐ
+function discoveryBonusFor(tier) {
+  if (DISCOVERY_BONUS[tier]) return DISCOVERY_BONUS[tier];
+  const last = DISCOVERY_BONUS[DISCOVERY_BONUS.length - 1];
+  const steps = tier - (DISCOVERY_BONUS.length - 1);
+  const mult = Math.pow(4, steps);
+  return { base: last.base * mult, mutation: last.mutation * mult };
+}
+function duplicateBonusFor(tier) {
+  if (DUPLICATE_BONUS[tier] !== undefined) return DUPLICATE_BONUS[tier];
+  const last = DUPLICATE_BONUS[DUPLICATE_BONUS.length - 1];
+  const steps = tier - (DUPLICATE_BONUS.length - 1);
+  return last * Math.pow(4, steps);
+}
+
+// シークレット(secret:true)オーラの発見・重複報酬 — tierが100など飛んだ値のため、
+// 通常tierの外挿式(4倍/tier)を使うと桁外れの値になってしまうので固定値にする
+const SECRET_DISCOVERY_BONUS = { base: 50000000, mutation: 75000000 };
+const SECRET_DUPLICATE_BONUS = 2000000;
+
 function calcAuraAether(aura, prevCount) {
-  const tier = aura.tier;
   const isMutation = !!aura.mutationOf;
+  if (aura.secret) {
+    if (prevCount === 0) return isMutation ? SECRET_DISCOVERY_BONUS.mutation : SECRET_DISCOVERY_BONUS.base;
+    if (prevCount >= DUPLICATE_CAP) return 0;
+    return SECRET_DUPLICATE_BONUS;
+  }
+  const tier = aura.tier;
   if (prevCount === 0) {
     // first discovery
-    return isMutation ? DISCOVERY_BONUS[tier].mutation : DISCOVERY_BONUS[tier].base;
+    const bonus = discoveryBonusFor(tier);
+    return isMutation ? bonus.mutation : bonus.base;
   }
   // duplicate conversion (capped)
   if (prevCount >= DUPLICATE_CAP) return 0;
-  return DUPLICATE_BONUS[tier];
+  return duplicateBonusFor(tier);
 }
 
 /* ---------------------------------------------------------------------- */
