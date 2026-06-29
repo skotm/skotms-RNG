@@ -19,7 +19,8 @@ const TIERS = [
   { name: "Eternal",      color: "#FF6B00" },  // 10 1T〜9.9T
   { name: "Primordial",   color: "#FFD700" },  // 11 10T+  (Sol's "DIMENSIONAL"相当の頂点)
 ];
-// tier 12〜99は将来の通常tier追加用に空けておく。100番だけオーバーフロー専用シークレットtier
+TIERS[12] = { name: "Infinity", color: "#00F0FF" };
+// tier 13〜99は将来の通常tier追加用に空けておく。100番だけオーバーフロー専用シークレットtier
 TIERS[100] = { name: "???", color: "#1A0008" };
 
 const AURAS = [
@@ -177,6 +178,11 @@ const AURAS = [
   { id: "origin_zero",    name: "Origin : Zero",      chance: 15000000000000, tier: 11 },
   { id: "genesis_absolute",name:"Genesis : Absolute", chance: 40000000000000, tier: 11 },
   { id: "the_beginning",  name: "The Beginning",      chance: 100000000000000,tier: 11 },
+  { id: "the_source",     name: "The Source",         chance: 70000000000000, tier: 11 },
+
+  // --- tier 12: Infinity(新設) ---
+  { id: "infinity",       name: "Infinity",           chance: 300000000000000, tier: 12 },
+  { id: "omega_point",    name: "Omega Point",        chance: 800000000000000, tier: 12 },
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   // Basic mutations
@@ -253,20 +259,23 @@ const AURAS = [
   { id: "event_horizon_collapse",name:"Event Horizon : Collapse",chance:2100000000000,tier:10,mutationOf:"event_horizon"},
   { id: "chronos_eternal",     name: "Chronos : Eternal",      chance: 9000000000000, tier: 10, mutationOf: "chronos" },
   { id: "origin_zero_null",    name: "Origin : Zero / Null",   chance: 90000000000000,tier: 11, mutationOf: "origin_zero" },
+  { id: "the_source_infinite", name: "The Source : Infinite",  chance: 420000000000000, tier: 12, mutationOf: "the_source" },
+  { id: "infinity_unbound",    name: "Infinity : Unbound",     chance: 1800000000000000, tier: 12, mutationOf: "infinity" },
+  { id: "omega_point_terminus",name: "Omega Point : Terminus", chance: 4800000000000000, tier: 12, mutationOf: "omega_point" },
 
   // --- tier 100: secret — オーバーフロー(luckが極端に高すぎて通常抽選が破綻した時)専用。
   // 12〜99は将来の通常tier追加用に空けておく
-  { id: "stack_overflow", name: "Stack Overflow",     chance: 200000000000000, tier: 100, secret: true },
-  { id: "nan_error",      name: "NaN",                chance: 300000000000000, tier: 100, secret: true },
-  { id: "segfault",       name: "Segmentation Fault", chance: 400000000000000, tier: 100, secret: true },
-  { id: "null_pointer",   name: "Null Pointer",       chance: 500000000000000, tier: 100, secret: true },
-  { id: "kernel_panic",   name: "Kernel Panic",       chance: 600000000000000, tier: 100, secret: true },
+  { id: "stack_overflow", name: "Stack Overflow",     chance: 6000000000000000, tier: 100, secret: true },
+  { id: "nan_error",      name: "NaN",                chance: 6500000000000000, tier: 100, secret: true },
+  { id: "segfault",       name: "Segmentation Fault", chance: 7000000000000000, tier: 100, secret: true },
+  { id: "null_pointer",   name: "Null Pointer",       chance: 7500000000000000, tier: 100, secret: true },
+  { id: "kernel_panic",   name: "Kernel Panic",       chance: 8000000000000000, tier: 100, secret: true },
 ];
 
 const colorOf = (aura) => TIERS[aura.tier].color;
 
 // Exalted以上(tier8 Dimensionalの白背景は除く)で、背景がオーラの色に染まっていく対象
-const TINT_BG_TIERS = new Set([5, 6, 7, 9, 10, 11, 100]);
+const TINT_BG_TIERS = new Set([5, 6, 7, 9, 10, 11, 12, 100]);
 
 // tier8以降、リアクション(揺れ)を強く・長くする
 function shakeFor(tier) {
@@ -280,6 +289,7 @@ function shakeFor(tier) {
   if (tier === 9) return { amp: 1.6,  duration: 0.85 };
   if (tier === 10) return { amp: 2.0, duration: 1.0 };
   if (tier === 11) return { amp: 2.5, duration: 1.2 };
+  if (tier === 12) return { amp: 2.75, duration: 1.3 }; // Infinity
   return { amp: 3.0, duration: 1.4 }; // tier 100 ???(Overflow)
 }
 function glowFor(tier) {
@@ -293,6 +303,7 @@ function glowFor(tier) {
   if (tier === 9) return { opacityMult: 1.25, speed: 1.6,  extent: 84 };
   if (tier === 10) return { opacityMult: 1.4, speed: 1.3,  extent: 90 };
   if (tier === 11) return { opacityMult: 1.55, speed: 1.0, extent: 96 };
+  if (tier === 12) return { opacityMult: 1.625, speed: 0.925, extent: 98 }; // Infinity
   return { opacityMult: 1.7, speed: 0.85, extent: 100 }; // tier 100 ???(Overflow)
 }
 const hasTier = (d, tierIdx) => AURAS.some((a) => a.tier === tierIdx && d.inventory[a.id]);
@@ -334,7 +345,8 @@ const ACHIEVEMENTS_DEF = [
   { id: "tier_cosmic",        name: "First Cosmic",         desc: "Pull a Cosmic aura",       goal: 1, group: "tier", order: 8, check: (d) => hasTier(d, 9),  metric: (d) => (hasTier(d, 9)  ? 1 : 0) },
   { id: "tier_eternal",       name: "First Eternal",        desc: "Pull an Eternal aura",     goal: 1, group: "tier", order: 9, check: (d) => hasTier(d, 10), metric: (d) => (hasTier(d, 10) ? 1 : 0) },
   { id: "tier_primordial",    name: "First Primordial",     desc: "Pull a Primordial aura",   goal: 1, group: "tier", order: 10, check: (d) => hasTier(d, 11), metric: (d) => (hasTier(d, 11) ? 1 : 0) },
-  { id: "tier_overflow",      name: "???",                  desc: "Pull a ??? aura",          goal: 1, group: "tier", order: 11, check: (d) => hasTier(d, 100), metric: (d) => (hasTier(d, 100) ? 1 : 0) },
+  { id: "tier_infinity",      name: "First Infinity",       desc: "Pull an Infinity aura",     goal: 1, group: "tier", order: 11, check: (d) => hasTier(d, 12), metric: (d) => (hasTier(d, 12) ? 1 : 0) },
+  { id: "tier_overflow",      name: "???",                  desc: "Pull a ??? aura",          goal: 1, group: "tier", order: 12, check: (d) => hasTier(d, 100), metric: (d) => (hasTier(d, 100) ? 1 : 0) },
 
   // --- mutation ---
   { id: "mutation_first", name: "First Mutation", desc: "Find a mutated aura", goal: 1, group: "mutation", order: 0, check: (d) => mutationOwnedCount(d) >= 1, metric: (d) => Math.min(mutationOwnedCount(d), 1) },
@@ -438,6 +450,7 @@ const ACHIEVEMENT_AETHER = {
   tier_cosmic:         2500000,
   tier_eternal:        10000000,
   tier_primordial:     40000000,
+  tier_infinity:       80000000,
   tier_overflow:       150000000,
   mutation_first:      100,
   mutation_5:          1000,
@@ -806,6 +819,7 @@ function effectFor(tier) {
   if (tier === 9) return { rings: 6, duration: 2700 }; // Cosmic
   if (tier === 10) return { rings: 7, duration: 3100 }; // Eternal
   if (tier === 11) return { rings: 9, duration: 3800 }; // Primordial
+  if (tier === 12) return { rings: 10, duration: 4100 }; // Infinity
   return { rings: 11, duration: 4400 }; // tier 100 ???(Overflow), the true apex
 }
 
@@ -814,6 +828,7 @@ function effectFor(tier) {
    on how rare the result is */
 function cutsceneTypeFor(chance, tier) {
   if (tier >= 100) return "overflow";   // ???(secret)
+  if (tier === 12) return "omega";      // Infinity
   if (tier === 11) return "singularity"; // Primordial
   if (tier === 10) return "eclipse";    // Eternal
   if (tier === 9)  return "quasar";     // Cosmic
@@ -832,11 +847,12 @@ const CUTSCENE_DURATIONS = {
   quasar:      { black: 380, spin: 4000, flash: 540, pulses: 2 },
   eclipse:     { black: 420, spin: 4600, flash: 620, pulses: 3 },
   singularity: { black: 460, spin: 5400, flash: 700, pulses: 3 },
+  omega:       { black: 480, spin: 5700, flash: 740, pulses: 3 },
   overflow:    { black: 500, spin: 6000, flash: 780, pulses: 4 },
 };
 
 // type別のスパークルの頂点数(珍しいほど尖りが増える)
-const SPARKLE_POINTS = { four: 4, six: 6, nova: 7, quasar: 8, eclipse: 10, singularity: 12, overflow: 14 };
+const SPARKLE_POINTS = { four: 4, six: 6, nova: 7, quasar: 8, eclipse: 10, singularity: 12, omega: 13, overflow: 14 };
 
 /* an N-pointed concave burst/sparkle shape — each point is a sharp tip,
    joined to the next by a curve whose control point sits at the center,
