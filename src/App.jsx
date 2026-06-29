@@ -19,6 +19,8 @@ const TIERS = [
   { name: "Eternal",      color: "#FF6B00" },  // 10 1T〜9.9T
   { name: "Primordial",   color: "#FFD700" },  // 11 10T+  (Sol's "DIMENSIONAL"相当の頂点)
 ];
+// tier 12〜99は将来の通常tier追加用に空けておく。100番だけオーバーフロー専用シークレットtier
+TIERS[100] = { name: "???", color: "#1A0008" };
 
 const AURAS = [
   // Basic — 1 to 999
@@ -251,12 +253,20 @@ const AURAS = [
   { id: "event_horizon_collapse",name:"Event Horizon : Collapse",chance:2100000000000,tier:10,mutationOf:"event_horizon"},
   { id: "chronos_eternal",     name: "Chronos : Eternal",      chance: 9000000000000, tier: 10, mutationOf: "chronos" },
   { id: "origin_zero_null",    name: "Origin : Zero / Null",   chance: 90000000000000,tier: 11, mutationOf: "origin_zero" },
+
+  // --- tier 100: secret — オーバーフロー(luckが極端に高すぎて通常抽選が破綻した時)専用。
+  // 12〜99は将来の通常tier追加用に空けておく
+  { id: "stack_overflow", name: "Stack Overflow",     chance: 200000000000000, tier: 100, secret: true },
+  { id: "nan_error",      name: "NaN",                chance: 300000000000000, tier: 100, secret: true },
+  { id: "segfault",       name: "Segmentation Fault", chance: 400000000000000, tier: 100, secret: true },
+  { id: "null_pointer",   name: "Null Pointer",       chance: 500000000000000, tier: 100, secret: true },
+  { id: "kernel_panic",   name: "Kernel Panic",       chance: 600000000000000, tier: 100, secret: true },
 ];
 
 const colorOf = (aura) => TIERS[aura.tier].color;
 
 // Exalted以上(tier8 Dimensionalの白背景は除く)で、背景がオーラの色に染まっていく対象
-const TINT_BG_TIERS = new Set([5, 6, 7, 9, 10, 11]);
+const TINT_BG_TIERS = new Set([5, 6, 7, 9, 10, 11, 100]);
 
 // tier8以降、リアクション(揺れ)を強く・長くする
 function shakeFor(tier) {
@@ -269,7 +279,8 @@ function shakeFor(tier) {
   if (tier === 8) return { amp: 1.3,  duration: 0.7 };
   if (tier === 9) return { amp: 1.6,  duration: 0.85 };
   if (tier === 10) return { amp: 2.0, duration: 1.0 };
-  return { amp: 2.5, duration: 1.2 }; // tier 11 Primordial
+  if (tier === 11) return { amp: 2.5, duration: 1.2 };
+  return { amp: 3.0, duration: 1.4 }; // tier 100 ???(Overflow)
 }
 function glowFor(tier) {
   if (tier <= 2)  return { opacityMult: 1,    speed: 2.3,  extent: 72 };
@@ -281,7 +292,8 @@ function glowFor(tier) {
   if (tier === 8) return { opacityMult: 1.1,  speed: 1.9,  extent: 78 };
   if (tier === 9) return { opacityMult: 1.25, speed: 1.6,  extent: 84 };
   if (tier === 10) return { opacityMult: 1.4, speed: 1.3,  extent: 90 };
-  return { opacityMult: 1.55, speed: 1.0, extent: 96 }; // tier 11 Primordial
+  if (tier === 11) return { opacityMult: 1.55, speed: 1.0, extent: 96 };
+  return { opacityMult: 1.7, speed: 0.85, extent: 100 }; // tier 100 ???(Overflow)
 }
 const hasTier = (d, tierIdx) => AURAS.some((a) => a.tier === tierIdx && d.inventory[a.id]);
 
@@ -322,6 +334,7 @@ const ACHIEVEMENTS_DEF = [
   { id: "tier_cosmic",        name: "First Cosmic",         desc: "Pull a Cosmic aura",       goal: 1, group: "tier", order: 8, check: (d) => hasTier(d, 9),  metric: (d) => (hasTier(d, 9)  ? 1 : 0) },
   { id: "tier_eternal",       name: "First Eternal",        desc: "Pull an Eternal aura",     goal: 1, group: "tier", order: 9, check: (d) => hasTier(d, 10), metric: (d) => (hasTier(d, 10) ? 1 : 0) },
   { id: "tier_primordial",    name: "First Primordial",     desc: "Pull a Primordial aura",   goal: 1, group: "tier", order: 10, check: (d) => hasTier(d, 11), metric: (d) => (hasTier(d, 11) ? 1 : 0) },
+  { id: "tier_overflow",      name: "???",                  desc: "Pull a ??? aura",          goal: 1, group: "tier", order: 11, check: (d) => hasTier(d, 100), metric: (d) => (hasTier(d, 100) ? 1 : 0) },
 
   // --- mutation ---
   { id: "mutation_first", name: "First Mutation", desc: "Find a mutated aura", goal: 1, group: "mutation", order: 0, check: (d) => mutationOwnedCount(d) >= 1, metric: (d) => Math.min(mutationOwnedCount(d), 1) },
@@ -346,7 +359,7 @@ const ACHIEVEMENTS_DEF = [
   { id: "playtime_100h", name: "No Touch Grass", desc: "Play for 100 hours", goal: 360000, group: "playtime", order: 4, itemReward: [{ itemId: "hyper_lucky_die", qty: 5 }], check: (d) => (d.playSeconds ?? 0) >= 360000, metric: (d) => Math.min(d.playSeconds ?? 0, 360000) },
 
   // --- standalone (no group → always shown) ---
-  { id: "collect_all", name: "Full Collection", desc: "Find every aura at least once", goal: AURAS.length, check: (d) => AURAS.every((a) => d.inventory[a.id]), metric: (d) => AURAS.filter((a) => d.inventory[a.id]).length },
+  { id: "collect_all", name: "Full Collection", desc: "Find every aura at least once", goal: AURAS.filter((a) => !a.secret).length, check: (d) => AURAS.every((a) => a.secret || d.inventory[a.id]), metric: (d) => AURAS.filter((a) => !a.secret && d.inventory[a.id]).length },
 ];
 
 // 同ジャンルの直前(order-1)が未達成の場合、まだ「???」のまま隠す
@@ -425,6 +438,7 @@ const ACHIEVEMENT_AETHER = {
   tier_cosmic:         2500000,
   tier_eternal:        10000000,
   tier_primordial:     40000000,
+  tier_overflow:       150000000,
   mutation_first:      100,
   mutation_5:          1000,
   mutation_15:         5000,
@@ -712,20 +726,29 @@ function pickAnimAura(luck = 1, inventory = {}) {
   return weighted[weighted.length - 1].aura;
 }
 
+const SECRET_AURAS = AURAS.filter((a) => a.secret);
+
 function rollAura(luck = 1, inventory = {}, mutationBoost = 1) {
   const byRarity = [...AURAS].sort((a, b) => b.chance - a.chance); // rarest first
   for (let pass = 0; pass < 100000; pass++) {
+    let anyEligible = false;
     for (const aura of byRarity) {
+      if (aura.secret) continue; // シークレットオーラは通常抽選では出ない
       // ベースオーラ未取得の場合、その変異オーラは抽選対象から除外
       if (aura.mutationOf && !inventory[aura.mutationOf]) continue;
       const effectiveLuck = aura.mutationOf ? luck * mutationBoost : luck;
       const denom = Math.floor(aura.chance / effectiveLuck);
       if (denom <= 1) continue; // 確実当選になるオーラは判定対象から外す(Sol's RNG仕様)
+      anyEligible = true;
       if (Math.floor(Math.random() * denom) === 0) return aura;
     }
-    // 1パスで誰も当選しなければ、最初からやり直す
+    // luckが極端に高すぎて1パスで誰も対象にならなかった場合、何度繰り返しても
+    // 結果は変わらない(乱数を使う前に全員除外されているため)。即座にフェイルセーフへ。
+    if (!anyEligible) break;
   }
-  return byRarity[byRarity.length - 1]; // フェイルセーフ（実質到達しない）
+  // フェイルセーフ — luckが高すぎて全オーラがdenom<=1になった(オーバーフロー)場合、
+  // 最も珍しくないオーラではなく、シークレットオーラからランダムに1つ選ぶ
+  return SECRET_AURAS[Math.floor(Math.random() * SECRET_AURAS.length)];
 }
 
 function formatTime(totalSeconds) {
@@ -735,8 +758,9 @@ function formatTime(totalSeconds) {
   return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
 }
 
-function formatChance(chance) {
-  return `1 in ${chance.toLocaleString()}`;
+function formatChance(aura) {
+  if (aura.secret) return "??? in ?";
+  return `1 in ${aura.chance.toLocaleString()}`;
 }
 
 function formatHiddenChance(chance) {
@@ -753,14 +777,16 @@ function effectFor(tier) {
   if (tier === 8) return { rings: 5, duration: 2300 };
   if (tier === 9) return { rings: 6, duration: 2700 }; // Cosmic
   if (tier === 10) return { rings: 7, duration: 3100 }; // Eternal
-  return { rings: 9, duration: 3800 }; // Primordial, the apex
+  if (tier === 11) return { rings: 9, duration: 3800 }; // Primordial
+  return { rings: 11, duration: 4400 }; // tier 100 ???(Overflow), the true apex
 }
 
 /* the pre-reveal "confirm" cutscene for sufficiently rare pulls — a jagged
    4-point sparkle, a 5-point star, or a jagged 6-point sparkle, depending
    on how rare the result is */
 function cutsceneTypeFor(chance, tier) {
-  if (tier >= 11) return "singularity"; // Primordial
+  if (tier >= 100) return "overflow";   // ???(secret)
+  if (tier === 11) return "singularity"; // Primordial
   if (tier === 10) return "eclipse";    // Eternal
   if (tier === 9)  return "quasar";     // Cosmic
   if (tier === 8)  return "nova";       // Dimensional
@@ -778,10 +804,11 @@ const CUTSCENE_DURATIONS = {
   quasar:      { black: 380, spin: 4000, flash: 540, pulses: 2 },
   eclipse:     { black: 420, spin: 4600, flash: 620, pulses: 3 },
   singularity: { black: 460, spin: 5400, flash: 700, pulses: 3 },
+  overflow:    { black: 500, spin: 6000, flash: 780, pulses: 4 },
 };
 
 // type別のスパークルの頂点数(珍しいほど尖りが増える)
-const SPARKLE_POINTS = { four: 4, six: 6, nova: 7, quasar: 8, eclipse: 10, singularity: 12 };
+const SPARKLE_POINTS = { four: 4, six: 6, nova: 7, quasar: 8, eclipse: 10, singularity: 12, overflow: 14 };
 
 /* an N-pointed concave burst/sparkle shape — each point is a sharp tip,
    joined to the next by a curve whose control point sits at the center,
@@ -915,7 +942,7 @@ function CollectionRow({ aura, owned, nested, onPreview }) {
             <span className="ar-row-name">{found ? aura.name : "Not found yet"}</span>
             {found && aura.mutationOf && <MutationTag />}
           </span>
-          <span className="ar-row-sub">{found ? formatChance(aura.chance) : formatHiddenChance(aura.chance)}</span>
+          <span className="ar-row-sub">{found ? formatChance(aura) : formatHiddenChance(aura.chance)}</span>
         </div>
       </div>
       <div className="ar-row-end">
@@ -1421,7 +1448,7 @@ const RANK_TABS = [
     id: "bestAura", label: "Best Aura", field: "bestAuraChance",
     fmt: (r) => {
       const aura = AURAS.find(a => a.id === r.bestAuraId);
-      return aura ? formatChance(aura.chance) : "—";
+      return aura ? formatChance(aura) : "—";
     },
   },
   {
@@ -2300,13 +2327,13 @@ export default function App() {
            かつ全ブラウザで確実に滑らかに補間される */
         .ar-cutscene-tint {
           position: absolute; inset: 0; pointer-events: none;
-          background: radial-gradient(circle, transparent 38%, var(--cs-color) 100%);
+          background: radial-gradient(circle, transparent 16%, var(--cs-color) 100%);
           opacity: 0;
           animation: ar-cs-tint-haze var(--tint-ms, 1000ms) ease-in forwards;
         }
         @keyframes ar-cs-tint-haze {
           0%   { opacity: 0; }
-          100% { opacity: 0.92; }
+          100% { opacity: 1; }
         }
         /* 縁が光って晴れるリプレイ — フラッシュに重ねて、画面の縁からオーラの色のグローが
            広がりながら消えていくことで「縁から晴れる」感覚を出す */
@@ -2329,6 +2356,12 @@ export default function App() {
           filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 6px var(--cs-color));
           animation: ar-cs-crack-draw var(--edge-ms, 450ms) ease forwards;
         }
+        /* 白背景バリアント(Dimensional/???)では白いひび割れが見えなくなるため、
+           黒系に切り替える */
+        .ar-cutscene-light .ar-cutscene-crack path {
+          stroke: #000;
+          filter: drop-shadow(0 0 3px #000) drop-shadow(0 0 6px var(--cs-color));
+        }
         @keyframes ar-cs-crack-draw { 0% { stroke-dashoffset: 200; opacity: 1; } 55% { stroke-dashoffset: 0; opacity: 1; } 80% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
         @keyframes ar-cs-spin {
           from { transform: scale(1) rotate(0deg); }
@@ -2342,6 +2375,7 @@ export default function App() {
         }
         .ar-cutscene-flash.ar-cutscene-flash-x2 { animation-name: ar-cs-flash-bg-x2; }
         .ar-cutscene-flash.ar-cutscene-flash-x3 { animation-name: ar-cs-flash-bg-x3; }
+        .ar-cutscene-flash.ar-cutscene-flash-x4 { animation-name: ar-cs-flash-bg-x4; }
 @keyframes ar-cs-flash-bg { 0% { background: #000; } 65% { background: #fff; } 100% { background: #fff; opacity: 0; } }
 @keyframes ar-cs-flash-bg-x2 {
   0%   { background: #000; }
@@ -2359,12 +2393,33 @@ export default function App() {
   70%  { background: #fff; }
   100% { background: #fff; opacity: 0; }
 }
+@keyframes ar-cs-flash-bg-x4 {
+  0%   { background: #000; }
+  11%  { background: #fff; }
+  22%  { background: #000; }
+  33%  { background: #fff; }
+  44%  { background: #000; }
+  55%  { background: #fff; }
+  66%  { background: #000; }
+  77%  { background: #fff; }
+  100% { background: #fff; opacity: 0; }
+}
         @keyframes ar-cs-flash-bg-white { 0% { background: #fff; } 65% { background: #fff; } 100% { background: #fff; opacity: 0; } }
 @keyframes ar-cs-flash-bg-white-x2 {
   0%   { background: #fff; }
   20%  { background: #ddd; }
   40%  { background: #fff; }
   60%  { background: #ddd; }
+  100% { background: #fff; opacity: 0; }
+}
+@keyframes ar-cs-flash-bg-white-x4 {
+  0%   { background: #fff; }
+  11%  { background: #ddd; }
+  22%  { background: #fff; }
+  33%  { background: #ddd; }
+  44%  { background: #fff; }
+  55%  { background: #ddd; }
+  66%  { background: #fff; }
   100% { background: #fff; opacity: 0; }
 }
         .ar-cutscene.ar-cutscene-light { --cs-bg: #fff; --cs-vignette: radial-gradient(circle at 50% 38%, rgba(0,0,0,0) 20%, rgba(200,200,220,0.5) 74%); }
@@ -2374,6 +2429,7 @@ export default function App() {
           animation-fill-mode: forwards;
         }
         .ar-cutscene.ar-cutscene-light.ar-cutscene-flash.ar-cutscene-flash-x2 { animation-name: ar-cs-flash-bg-white-x2; }
+        .ar-cutscene.ar-cutscene-light.ar-cutscene-flash.ar-cutscene-flash-x4 { animation-name: ar-cs-flash-bg-white-x4; }
         .ar-stage.ar-shake { animation-name: ar-cs-shake; animation-timing-function: ease-out; }
         @keyframes ar-cs-shake {
           0% { transform: translate(0, 0); }
@@ -3076,7 +3132,7 @@ export default function App() {
         const isTunnel = TINT_BG_TIERS.has(cutscene.tier);
         return (
           <div
-            className={`ar-cutscene ar-cutscene-${cutscene.stage}${cutscene.tier === 8 ? " ar-cutscene-light" : ""}${cutscene.stage === "flash" && cutscene.pulses > 1 ? ` ar-cutscene-flash-x${cutscene.pulses}` : ""}`}
+            className={`ar-cutscene ar-cutscene-${cutscene.stage}${(cutscene.tier === 8 || cutscene.tier === 100) ? " ar-cutscene-light" : ""}${cutscene.stage === "flash" && cutscene.pulses > 1 ? ` ar-cutscene-flash-x${cutscene.pulses}` : ""}`}
             style={{
               "--cs-color": cutscene.color,
               "--tint-ms": `${dur.black + dur.spin}ms`,
@@ -3098,7 +3154,7 @@ export default function App() {
               )}
             </div>
             {cutscene.stage === "flash" && <div className="ar-cutscene-edge" />}
-            {cutscene.tier === 3 && cutscene.stage === "flash" && (
+            {(cutscene.tier === 3 || cutscene.tier === 100) && cutscene.stage === "flash" && (
               <svg className="ar-cutscene-crack" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <path d="M50,0 L46,22 L58,30 L40,48 L55,55 L35,75 L48,82 L42,100" />
                 <path d="M0,40 L25,38 L20,52 L45,50" />
@@ -3124,7 +3180,7 @@ export default function App() {
             <div className="ar-badge-row">
               <div className="ar-badge">{badgeAura && <AuraVisual aura={badgeAura} size={36} />}</div>
               <div className="ar-badge-text">
-                {badgeAura && <span className="ar-badge-chance">{formatChance(badgeAura.chance)}</span>}
+                {badgeAura && <span className="ar-badge-chance">{formatChance(badgeAura)}</span>}
                 {badgeAura && badgeAura.mutationOf && <MutationTag />}
               </div>
             </div>
@@ -3178,7 +3234,7 @@ export default function App() {
                   <div className="ar-reveal-text ar-pop" key={popKey}>
                     {revealText}
                   </div>
-                  {revealAura && <div className="ar-reveal-chance">{formatChance(revealAura.chance)}</div>}
+                  {revealAura && <div className="ar-reveal-chance">{formatChance(revealAura)}</div>}
                   {revealAura && revealAura.mutationOf && <MutationTag />}
                 </div>
               </div>
@@ -3307,6 +3363,7 @@ export default function App() {
                   <div className="ar-section-label">{collectedCount} of {AURAS.length} found</div>
                   {TIERS.map((tierInfo, tierIdx) => {
                     const baseAuras = AURAS.filter((a) => a.tier === tierIdx && !a.mutationOf);
+                    const isSecretTier = baseAuras.length > 0 && baseAuras.every((a) => a.secret);
                     let totalCount = 0;
                     let ownedCount = 0;
                     baseAuras.forEach((a) => {
@@ -3318,15 +3375,17 @@ export default function App() {
                         if (data.inventory[mutation.id]) ownedCount += 1;
                       }
                     });
+                    if (isSecretTier && ownedCount === 0) return null; // 1つも見つけるまでセクション自体を隠す
+                    const visibleBaseAuras = baseAuras.filter((a) => !a.secret || data.inventory[a.id]);
                     return (
-                      <div key={tierInfo.name} style={{ marginBottom: 14 }}>
+                      <div key={tierIdx} style={{ marginBottom: 14 }}>
                         <div className="ar-tier-label">
                           <Dot color={tierInfo.color} size={9} />
                           {tierInfo.name}
                           <span className="ar-tier-count">{ownedCount}/{totalCount}</span>
                         </div>
                         <div className="ar-group">
-                          {baseAuras.map((a) => {
+                          {visibleBaseAuras.map((a) => {
                             const owned = data.inventory[a.id] || 0;
                             const mutation = AURAS.find((m) => m.mutationOf === a.id);
                             const mutationOwned = mutation ? data.inventory[mutation.id] || 0 : 0;
@@ -3676,7 +3735,7 @@ export default function App() {
           <div className="ar-rarefind-name" style={{ color: colorOf(rareFind.aura) }}>
             {rareFind.aura.name}
           </div>
-          <div className="ar-rarefind-chance">{formatChance(rareFind.aura.chance)}</div>
+          <div className="ar-rarefind-chance">{formatChance(rareFind.aura)}</div>
         </div>
       )}
 
